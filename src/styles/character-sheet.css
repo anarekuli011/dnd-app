@@ -641,6 +641,15 @@
   cursor: default;
 }
 
+.cs-stat-block--danger {
+  border-color: var(--danger);
+  background: var(--danger-dim);
+}
+
+.cs-stat-block__value--danger {
+  color: var(--danger) !important;
+}
+
 .cs-stat-block__label {
   font-size: 0.7rem;
   font-weight: 600;
@@ -1503,6 +1512,34 @@
 .cs-item__btn--danger:hover {
   background: var(--danger-dim);
   color: var(--danger);
+}
+
+/* ── Item preview (in add/edit modal) ─────────────────────────── */
+
+.cs-item-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--radius-sm);
+  animation: cs-fade-in 0.15s ease;
+}
+
+.cs-item-preview__stat {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.cs-item-preview__desc {
+  font-size: 0.78rem;
+  color: var(--text);
+  opacity: 0.9;
+  line-height: 1.4;
+  flex: 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════

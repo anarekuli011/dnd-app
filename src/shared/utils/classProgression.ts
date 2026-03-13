@@ -25,8 +25,9 @@ export interface RaceDef {
   bonuses: Partial<Record<AbilityName, number>>;
   speed: number;
   languages: string[];
-  /** Bonus spell slots: map of spell level → extra slots */
   bonusSlots: Partial<Record<number, number>>;
+  /** Flat bonus to carry capacity in kg */
+  carryBonus: number;
 }
 
 export const RACES: RaceDef[] = [
@@ -38,6 +39,7 @@ export const RACES: RaceDef[] = [
     speed: 30,
     languages: ["Common", "CHOOSE:language"],
     bonusSlots: { 1: 1 },
+    carryBonus: 15,
   },
   {
     name: "Elf",
@@ -47,6 +49,7 @@ export const RACES: RaceDef[] = [
     speed: 35,
     languages: ["Common", "Elvish"],
     bonusSlots: { 1: 1 },
+    carryBonus: 5,
   },
   {
     name: "Dwarf",
@@ -56,6 +59,7 @@ export const RACES: RaceDef[] = [
     speed: 25,
     languages: ["Common", "Dwarvish"],
     bonusSlots: {},
+    carryBonus: 25,
   },
   {
     name: "Orc",
@@ -65,6 +69,7 @@ export const RACES: RaceDef[] = [
     speed: 30,
     languages: ["Common", "Orcish"],
     bonusSlots: {},
+    carryBonus: 30,
   },
   {
     name: "Goblin",
@@ -74,6 +79,7 @@ export const RACES: RaceDef[] = [
     speed: 30,
     languages: ["Common", "Goblin"],
     bonusSlots: { 1: 1 },
+    carryBonus: 5,
   },
   {
     name: "Demon",
@@ -83,6 +89,7 @@ export const RACES: RaceDef[] = [
     speed: 30,
     languages: ["Common", "Infernal"],
     bonusSlots: { 2: 1 },
+    carryBonus: 20,
   },
   {
     name: "Angel",
@@ -92,6 +99,7 @@ export const RACES: RaceDef[] = [
     speed: 35,
     languages: ["Common", "Celestial"],
     bonusSlots: { 2: 1 },
+    carryBonus: 10,
   },
 ];
 
@@ -123,6 +131,8 @@ export interface ClassDef {
   allowedSchools: SpellSchool[];
   /** full = slots at Lv1 up to Lv9, half = slots at Lv2 up to Lv5, third = slots at Lv3 up to Lv3 */
   casterType: "full" | "half" | "third";
+  /** Flat bonus to carry capacity in kg */
+  carryBonus: number;
 }
 
 export const CLASSES: ClassDef[] = [
@@ -139,6 +149,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "intelligence",
     allowedSchools: ["shadowcraft", "illusion", "enchantment"],
     casterType: "third",
+    carryBonus: 10,
   },
   {
     name: "Archer",
@@ -153,6 +164,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "wisdom",
     allowedSchools: ["primal", "divination", "evocation"],
     casterType: "half",
+    carryBonus: 10,
   },
   {
     name: "Wizard",
@@ -167,6 +179,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "intelligence",
     allowedSchools: ["evocation", "abjuration", "conjuration", "divination", "transmutation"],
     casterType: "full",
+    carryBonus: 0,
   },
   {
     name: "Priest",
@@ -181,6 +194,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "wisdom",
     allowedSchools: ["divine", "abjuration", "necromancy", "divination"],
     casterType: "half",
+    carryBonus: 10,
   },
   {
     name: "Warrior",
@@ -195,6 +209,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "strength",
     allowedSchools: ["battlecraft", "evocation"],
     casterType: "third",
+    carryBonus: 30,
   },
   {
     name: "Knight",
@@ -209,6 +224,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "charisma",
     allowedSchools: ["battlecraft", "divine", "abjuration"],
     casterType: "third",
+    carryBonus: 25,
   },
   {
     name: "Paladin",
@@ -223,6 +239,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "charisma",
     allowedSchools: ["divine", "abjuration", "evocation"],
     casterType: "half",
+    carryBonus: 25,
   },
   {
     name: "Assassin",
@@ -237,6 +254,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "intelligence",
     allowedSchools: ["shadowcraft", "necromancy", "illusion"],
     casterType: "third",
+    carryBonus: 10,
   },
   {
     name: "Necromancer",
@@ -251,6 +269,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "intelligence",
     allowedSchools: ["necromancy", "conjuration", "divination", "enchantment"],
     casterType: "full",
+    carryBonus: 0,
   },
   {
     name: "Huntress",
@@ -265,6 +284,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "wisdom",
     allowedSchools: ["primal", "divination", "transmutation"],
     casterType: "half",
+    carryBonus: 15,
   },
   {
     name: "Mystic",
@@ -279,6 +299,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "wisdom",
     allowedSchools: ["divination", "enchantment", "transmutation", "abjuration"],
     casterType: "full",
+    carryBonus: 0,
   },
   {
     name: "Trickster",
@@ -293,6 +314,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "charisma",
     allowedSchools: ["illusion", "enchantment", "shadowcraft"],
     casterType: "half",
+    carryBonus: 5,
   },
   {
     name: "Sorcerer",
@@ -307,6 +329,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "charisma",
     allowedSchools: ["evocation", "enchantment", "transmutation", "conjuration"],
     casterType: "full",
+    carryBonus: 0,
   },
   {
     name: "Ninja",
@@ -321,6 +344,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "dexterity",
     allowedSchools: ["shadowcraft", "illusion"],
     casterType: "third",
+    carryBonus: 10,
   },
   {
     name: "Samurai",
@@ -335,6 +359,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "wisdom",
     allowedSchools: ["battlecraft", "divination"],
     casterType: "third",
+    carryBonus: 20,
   },
   {
     name: "Bard",
@@ -349,6 +374,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "charisma",
     allowedSchools: ["enchantment", "illusion", "divination"],
     casterType: "half",
+    carryBonus: 5,
   },
   {
     name: "Summoner",
@@ -363,6 +389,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "intelligence",
     allowedSchools: ["conjuration", "transmutation", "divination", "abjuration"],
     casterType: "full",
+    carryBonus: 0,
   },
   {
     name: "Kensei",
@@ -377,6 +404,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "dexterity",
     allowedSchools: ["battlecraft", "transmutation"],
     casterType: "third",
+    carryBonus: 15,
   },
   {
     name: "Druid",
@@ -391,6 +419,7 @@ export const CLASSES: ClassDef[] = [
     spellcastingAbility: "wisdom",
     allowedSchools: ["primal", "transmutation", "conjuration", "divination"],
     casterType: "half",
+    carryBonus: 15,
   },
 ];
 
@@ -936,5 +965,40 @@ export function computeSpellSlots(
     maxSpellLevel,
     casterLabel: casterLabels[casterType] ?? "Third Caster",
     breakdown,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Carry Capacity
+// ══════════════════════════════════════════════════════════════════
+
+export interface CarryCapacityBreakdown {
+  base: number;       // STR × 2
+  raceBonus: number;
+  classBonus: number;
+  total: number;
+}
+
+/**
+ * Computes carry capacity in kg.
+ *   total = (STR × 2) + race bonus + class bonus
+ */
+export function computeCarryCapacity(
+  strengthScore: number,
+  raceName: string,
+  className: string
+): CarryCapacityBreakdown {
+  const race = RACE_MAP.get(raceName);
+  const cls = CLASS_MAP.get(className);
+
+  const base = strengthScore * 1;
+  const raceBonus = race?.carryBonus ?? 0;
+  const classBonus = cls?.carryBonus ?? 0;
+
+  return {
+    base,
+    raceBonus,
+    classBonus,
+    total: base + raceBonus + classBonus,
   };
 }

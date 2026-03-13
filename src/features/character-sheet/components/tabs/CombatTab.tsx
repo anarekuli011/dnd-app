@@ -8,9 +8,8 @@ import {
   computeAC,
   computeMaxHP,
   computeHitDice,
+  computeCarryCapacity,
   CLASS_MAP,
-  RACE_MAP,
-  ARMOR_PROFILES,
 } from "@shared/utils/classProgression";
 
 // ── Constants ────────────────────────────────────────────────────
@@ -50,6 +49,7 @@ export default function CombatTab() {
     dex: 0,
     con: 0,
     inventoryHash: "",
+    totalWeight: 0,
   });
 
   // Auto-compute and sync combat stats to Firestore
@@ -58,12 +58,20 @@ export default function CombatTab() {
 
     const dexScore = character.abilityScores.dexterity;
     const conScore = character.abilityScores.constitution;
+    const strScore = character.abilityScores.strength;
 
     // Simple hash of equipped items to detect inventory changes
     const equipped = character.inventory.filter((i) => i.equipped);
     const invHash = equipped
       .map((i) => `${i.id}:${i.acBonus ?? 0}:${i.name}`)
       .join("|");
+
+    // Total weight for encumbrance
+    const totalWeight = character.inventory.reduce(
+      (sum, item) => sum + (item.weight ?? 0) * item.quantity,
+      0
+    );
+    const maxCarry = computeCarryCapacity(strScore, character.race, character.class).total;
 
     const prev = prevRef.current;
     const changed =
@@ -72,7 +80,8 @@ export default function CombatTab() {
       prev.level !== character.level ||
       prev.dex !== dexScore ||
       prev.con !== conScore ||
-      prev.inventoryHash !== invHash;
+      prev.inventoryHash !== invHash ||
+      prev.totalWeight !== totalWeight;
 
     if (!changed) return;
 
@@ -83,10 +92,13 @@ export default function CombatTab() {
       dex: dexScore,
       con: conScore,
       inventoryHash: invHash,
+      totalWeight,
     };
 
     // Compute new values
-    const speed = computeSpeed(character.race);
+    const baseSpeed = computeSpeed(character.race);
+    const isOverEncumbered = totalWeight > maxCarry;
+    const speed = isOverEncumbered ? 1 : baseSpeed;
     const initiative = computeInitiative(dexScore);
     const acResult = computeAC(
       character.class,
@@ -125,10 +137,10 @@ export default function CombatTab() {
     character?.level,
     character?.abilityScores.dexterity,
     character?.abilityScores.constitution,
+    character?.abilityScores.strength,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     character?.inventory
-      .filter((i) => i.equipped)
-      .map((i) => `${i.id}:${i.acBonus}`)
+      .map((i) => `${i.id}:${i.acBonus ?? 0}:${i.equipped}:${i.weight ?? 0}:${i.quantity}`)
       .join("|"),
   ]);
 
@@ -152,6 +164,16 @@ export default function CombatTab() {
     conScore
   );
   const hdInfo = computeHitDice(character.class, character.level);
+
+  // Encumbrance check
+  const strScore = character.abilityScores.strength;
+  const totalWeight = character.inventory.reduce(
+    (sum, item) => sum + (item.weight ?? 0) * item.quantity,
+    0
+  );
+  const maxCarry = computeCarryCapacity(strScore, character.race, character.class).total;
+  const isOverEncumbered = totalWeight > maxCarry;
+  const baseSpeed = computeSpeed(character.race);
 
   const hp = character.hitPoints;
   const ds = character.deathSaves;
@@ -213,15 +235,27 @@ export default function CombatTab() {
 
           {/* Speed */}
           <div
-            className="cs-stat-block cs-stat-block--readonly"
-            title={`Base speed from ${character.race || "race"}`}
+            className={`cs-stat-block cs-stat-block--readonly ${
+              isOverEncumbered ? "cs-stat-block--danger" : ""
+            }`}
+            title={
+              isOverEncumbered
+                ? `Over-encumbered! ${totalWeight.toFixed(1)} / ${maxCarry} kg — speed reduced to 1`
+                : `Base speed from ${character.race || "race"}: ${baseSpeed}`
+            }
           >
             <span className="cs-stat-block__label">Speed</span>
-            <span className="cs-stat-block__value cs-stat-block__value--readonly">
+            <span
+              className={`cs-stat-block__value cs-stat-block__value--readonly ${
+                isOverEncumbered ? "cs-stat-block__value--danger" : ""
+              }`}
+            >
               {character.speed}
             </span>
             <span className="cs-stat-block__detail">
-              {character.race || "—"} base
+              {isOverEncumbered
+                ? "Over-encumbered!"
+                : `${character.race || "—"} base`}
             </span>
           </div>
 
