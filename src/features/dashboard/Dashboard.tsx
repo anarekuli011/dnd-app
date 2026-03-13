@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@features/auth/context/AuthContext";
+import { useSessionContext } from "@features/session";
 import type { Character } from "@shared/types/dnd";
 import {
   createCharacter,
@@ -10,6 +11,7 @@ import {
 
 export default function Dashboard() {
   const { user, profile, logout } = useAuth();
+  const { phase, session, isGM, error, clearError } = useSessionContext();
   const navigate = useNavigate();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,13 +139,90 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* ── Campaigns placeholder ─────────────────────── */}
+          {/* ── Live Sessions ─────────────────────────────── */}
           <div className="dashboard-card">
-            <h3>Campaigns</h3>
-            <p>Join or create a campaign to play with your group.</p>
-            <button className="btn btn--primary" disabled>
-              + New Campaign (coming soon)
-            </button>
+            <h3>Live Sessions</h3>
+
+            {/* Active session indicator */}
+            {phase === "connected" && session && (
+              <div className="dashboard-session-active">
+                <span className="dashboard-session-active__dot" />
+                <div className="dashboard-session-active__info">
+                  <span className="dashboard-session-active__label">
+                    You're in a live session
+                  </span>
+                  <span className="dashboard-session-active__code">
+                    Code: {session.sessionCode} ·{" "}
+                    {session.connectedPlayers.length} player
+                    {session.connectedPlayers.length !== 1 ? "s" : ""}
+                    {isGM ? " · GM" : ""}
+                  </span>
+                </div>
+                <button
+                  className="btn btn--primary btn--sm"
+                  onClick={() => navigate("/session")}
+                >
+                  Return to Session
+                </button>
+              </div>
+            )}
+
+            {/* Connecting / joining in progress */}
+            {(phase === "creating" || phase === "joining") && (
+              <p className="dashboard-card__loading">Connecting to session…</p>
+            )}
+
+            {/* Session actions — only when not in any session */}
+            {phase === "idle" && (
+              <>
+                <p>Start a session as GM or join one as a player.</p>
+                <div className="dashboard-session-actions">
+                  <button
+                    className="btn btn--primary"
+                    onClick={() => navigate("/session?mode=create")}
+                  >
+                    🏰 Start as GM
+                  </button>
+                  <button
+                    className="btn btn--outline"
+                    onClick={() => navigate("/session?mode=join")}
+                  >
+                    🗝️ Join Session
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Error state — session ended or disconnected */}
+            {phase === "error" && !session && (
+              <>
+                <p>
+                  {error?.code === "ENDED"
+                    ? "The GM has ended the session. Ready for the next one?"
+                    : "Something went wrong with the last session."}
+                </p>
+                <div className="dashboard-session-actions">
+                  <button
+                    className="btn btn--primary"
+                    onClick={() => {
+                      clearError();
+                      navigate("/session?mode=create");
+                    }}
+                  >
+                    🏰 Start as GM
+                  </button>
+                  <button
+                    className="btn btn--outline"
+                    onClick={() => {
+                      clearError();
+                      navigate("/session?mode=join");
+                    }}
+                  >
+                    🗝️ Join Session
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </main>

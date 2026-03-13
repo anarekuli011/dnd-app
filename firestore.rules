@@ -55,14 +55,30 @@ service cloud.firestore {
     }
 
     // ── Sessions ──────────────────────────────────────────────────
-    // GM and connected players can read; only GM can write.
+    // Any signed-in user can read sessions (the 6-char join code
+    // acts as the access-control gate — you can't join without it).
+    // GM has full update/delete rights. Non-GM players can ONLY
+    // update connectedPlayers (to add/remove themselves).
     match /sessions/{sessionId} {
-      allow read: if isSignedIn()
-                  && (resource.data.gmId == request.auth.uid
-                      || request.auth.uid in resource.data.connectedPlayers);
+      allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn()
-                            && resource.data.gmId == request.auth.uid;
+
+      allow update: if isSignedIn()
+                    && (
+                      // GM can update anything
+                      resource.data.gmId == request.auth.uid
+                      // Non-GM: only connectedPlayers changed
+                      || (
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["connectedPlayers"])
+                        && (
+                          request.auth.uid in request.resource.data.connectedPlayers
+                          || request.auth.uid in resource.data.connectedPlayers
+                        )
+                      )
+                    );
+
+      allow delete: if isSignedIn()
+                    && resource.data.gmId == request.auth.uid;
 
       // Roll log — anyone in the session can read; Cloud Functions write
       match /rollLog/{rollId} {
@@ -91,6 +107,19 @@ service cloud.firestore {
       match /gmNotes/{noteId} {
         allow read, write: if isSignedIn()
                            && get(/databases/$(database)/documents/sessions/$(sessionId)).data.gmId == request.auth.uid;
+      }
+
+      // Presence — heartbeat-based online tracking.
+      // Each player writes their own doc (uid == docId).
+      // All session members can read. Players can only write/delete
+      // their own presence doc. GM can also delete any (cleanup).
+      match /presence/{presenceUid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+                               && request.auth.uid == presenceUid;
+        allow delete: if isSignedIn()
+                      && (request.auth.uid == presenceUid
+                          || get(/databases/$(database)/documents/sessions/$(sessionId)).data.gmId == request.auth.uid);
       }
     }
   }

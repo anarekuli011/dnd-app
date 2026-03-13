@@ -4,37 +4,58 @@ import SignupPage from "@features/auth/components/SignupPage";
 import AuthGuard from "@features/auth/components/AuthGuard";
 import Dashboard from "@features/dashboard/Dashboard";
 import { CharacterSheet } from "@features/character-sheet";
+import { SessionView, SessionBar } from "@features/session";
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
+    <>
+      {/* Persistent session bar — shows only when connected */}
+      <SessionBar />
 
-      {/* Protected routes */}
-      <Route
-        path="/dashboard"
-        element={
-          <AuthGuard>
-            <Dashboard />
-          </AuthGuard>
-        }
-      />
-      <Route
-        path="/character/:id"
-        element={
-          <AuthGuard>
-            <CharacterSheet />
-          </AuthGuard>
-        }
-      />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
 
-      {/* Placeholder routes for future phases */}
-      {/* <Route path="/session/:code"  element={<AuthGuard><SessionView /></AuthGuard>} /> */}
+        {/* Protected routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <AuthGuard>
+              <Dashboard />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/character/:id"
+          element={
+            <AuthGuard>
+              <CharacterSheet />
+            </AuthGuard>
+          }
+        />
 
-      {/* Default redirect */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        {/* Session routes */}
+        <Route
+          path="/session"
+          element={
+            <AuthGuard>
+              <SessionView />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/session/:code"
+          element={
+            <AuthGuard>
+              <SessionView />
+            </AuthGuard>
+          }
+        />
+
+        {/* Default redirect */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </>
   );
 }
