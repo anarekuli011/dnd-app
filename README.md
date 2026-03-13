@@ -112,7 +112,7 @@ Installers are output to the `release/` directory (NSIS for Windows, DMG for Mac
 | Phase | Focus                        | Status |
 |-------|------------------------------|--------|
 | 1     | Skeleton (Electron + Auth)   | ✅      |
-| 2     | Live Sessions                | ⬜      |
+| 2     | Live Sessions                | ✅      |
 | 3     | Dice & Calculations          | ⬜      |
 | 4     | GM Tools                     | ⬜      |
 | 5     | Visual Polish                | ⬜      |
