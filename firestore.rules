@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────
+    // Users can read/write only their own profile.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update, delete: if isOwner(userId);
+    }
+
+    // ── Characters ────────────────────────────────────────────────
+    // Owners have full access; other signed-in users can read
+    // (needed so GM can view player stats during sessions).
+    match /characters/{charId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn()
+                            && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── Campaigns ─────────────────────────────────────────────────
+    // GM has full control; players in the campaign can read.
+    match /campaigns/{campaignId} {
+      allow read: if isSignedIn()
+                  && (resource.data.gmId == request.auth.uid
+                      || request.auth.uid in resource.data.playerIds);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn()
+                            && resource.data.gmId == request.auth.uid;
+
+      // Encounters sub-collection — GM only
+      match /encounters/{encId} {
+        allow read, write: if isSignedIn()
+                           && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.gmId == request.auth.uid;
+      }
+
+      // NPCs sub-collection — GM only
+      match /npcs/{npcId} {
+        allow read, write: if isSignedIn()
+                           && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.gmId == request.auth.uid;
+      }
+    }
+
+    // ── Sessions ──────────────────────────────────────────────────
+    // GM and connected players can read; only GM can write.
+    match /sessions/{sessionId} {
+      allow read: if isSignedIn()
+                  && (resource.data.gmId == request.auth.uid
+                      || request.auth.uid in resource.data.connectedPlayers);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn()
+                            && resource.data.gmId == request.auth.uid;
+
+      // Roll log — anyone in the session can read; Cloud Functions write
+      match /rollLog/{rollId} {
+        allow read: if isSignedIn();
+        allow write: if false; // Only Cloud Functions should write rolls
+      }
+
+      // Active effects — GM writes, players read
+      match /activeEffects/{effectId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn()
+                     && get(/databases/$(database)/documents/sessions/$(sessionId)).data.gmId == request.auth.uid;
+      }
+
+      // Roll requests — GM creates, target player can read
+      match /rollRequests/{requestId} {
+        allow read: if isSignedIn()
+                    && (resource.data.targetPlayerId == request.auth.uid
+                        || get(/databases/$(database)/documents/sessions/$(sessionId)).data.gmId == request.auth.uid);
+        allow create: if isSignedIn()
+                      && get(/databases/$(database)/documents/sessions/$(sessionId)).data.gmId == request.auth.uid;
+        allow update: if false; // Cloud Functions handle completion
+      }
+
+      // GM notes — GM only
+      match /gmNotes/{noteId} {
+        allow read, write: if isSignedIn()
+                           && get(/databases/$(database)/documents/sessions/$(sessionId)).data.gmId == request.auth.uid;
+      }
+    }
+  }
+}
