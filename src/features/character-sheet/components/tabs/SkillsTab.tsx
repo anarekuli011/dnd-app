@@ -19,7 +19,6 @@ const ABILITY_SHORT: Record<string, string> = {
 };
 
 function formatSkillName(skill: SkillName): string {
-  // Convert camelCase to Title Case with spaces
   return skill
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (s) => s.toUpperCase());
@@ -27,6 +26,15 @@ function formatSkillName(skill: SkillName): string {
 
 function formatMod(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
+}
+
+// ── Point cost helpers ───────────────────────────────────────────
+
+/** Proficient = 1 point, Expertise = 2 points total */
+function pointCost(proficient: boolean, expertise: boolean): number {
+  if (expertise) return 2;
+  if (proficient) return 1;
+  return 0;
 }
 
 // ── Component ────────────────────────────────────────────────────
@@ -37,6 +45,17 @@ export default function SkillsTab() {
 
   const profBonus = character.proficiencyBonus;
 
+  // ── Point budget ─────────────────────────────────────────────
+
+  const totalPoints = character.level; // 1 per level
+
+  const usedPoints = SKILL_NAMES.reduce((sum, skill) => {
+    const prof = character.skills[skill];
+    return sum + pointCost(prof?.proficient ?? false, prof?.expertise ?? false);
+  }, 0);
+
+  const remainingPoints = totalPoints - usedPoints;
+
   // ── Sort skills by ability ───────────────────────────────────
 
   const sorted = [...SKILL_NAMES].sort((a, b) => {
@@ -46,12 +65,44 @@ export default function SkillsTab() {
     return a.localeCompare(b);
   });
 
+  // ── Group by ability for section headers ─────────────────────
+
+  let lastAbility = "";
+
   return (
     <div className="cs-tab cs-tab--skills">
+      {/* ── Proficiency Points ─────────────────────────────── */}
+      <section className="cs-section">
+        <h2 className="cs-section__title">Proficiency Points</h2>
+        <div className="cs-prof-points">
+          <div className="cs-prof-points__bar-container">
+            <div
+              className="cs-prof-points__bar"
+              style={{
+                width: `${totalPoints > 0 ? (usedPoints / totalPoints) * 100 : 0}%`,
+              }}
+            />
+            <span className="cs-prof-points__text">
+              {usedPoints} / {totalPoints} used
+            </span>
+          </div>
+          <div className="cs-prof-points__info">
+            <span className="cs-prof-points__remaining">
+              {remainingPoints} point{remainingPoints !== 1 ? "s" : ""} remaining
+            </span>
+            <span className="cs-prof-points__hint">
+              ● Proficient = 1 pt · ★ Expertise = 2 pts
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Skills ─────────────────────────────────────────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Skills</h2>
         <p className="cs-section__hint">
-          Click the circle to toggle proficiency. Click again for expertise (double proficiency).
+          Click the circle to assign proficiency points. Proficient costs 1
+          point, expertise costs 2. Click again to remove.
         </p>
 
         <div className="cs-skills">
@@ -67,21 +118,38 @@ export default function SkillsTab() {
             if (hasExpertise) bonus += profBonus * 2;
             else if (isProficient) bonus += profBonus;
 
+            // Show ability group header
+            let showHeader = false;
+            if (ability !== lastAbility) {
+              lastAbility = ability;
+              showHeader = true;
+            }
+
             function cycleProf() {
               if (!isProficient && !hasExpertise) {
-                // → proficient
-                updateNested(`skills.${skill}`, {
-                  proficient: true,
-                  expertise: false,
-                });
+                // none → proficient (costs 1)
+                if (remainingPoints >= 1) {
+                  updateNested(`skills.${skill}`, {
+                    proficient: true,
+                    expertise: false,
+                  });
+                }
               } else if (isProficient && !hasExpertise) {
-                // → expertise
-                updateNested(`skills.${skill}`, {
-                  proficient: true,
-                  expertise: true,
-                });
+                // proficient → expertise (costs 1 more, 2 total)
+                if (remainingPoints >= 1) {
+                  updateNested(`skills.${skill}`, {
+                    proficient: true,
+                    expertise: true,
+                  });
+                } else {
+                  // No points for expertise — remove proficiency instead (refund)
+                  updateNested(`skills.${skill}`, {
+                    proficient: false,
+                    expertise: false,
+                  });
+                }
               } else {
-                // → none
+                // expertise → none (refund 2)
                 updateNested(`skills.${skill}`, {
                   proficient: false,
                   expertise: false,
@@ -89,43 +157,78 @@ export default function SkillsTab() {
               }
             }
 
+            // Can the player upgrade this skill?
+            const canUpgrade =
+              (!isProficient && remainingPoints >= 1) ||
+              (isProficient && !hasExpertise && remainingPoints >= 1);
+
             return (
-              <div key={skill} className="cs-skill">
-                <button
-                  className={`cs-skill__prof ${
-                    hasExpertise
-                      ? "cs-skill__prof--expert"
-                      : isProficient
-                      ? "cs-skill__prof--yes"
+              <div key={skill}>
+                {showHeader && (
+                  <div className="cs-skill-group-header">
+                    {ability.charAt(0).toUpperCase() + ability.slice(1)}
+                  </div>
+                )}
+                <div
+                  className={`cs-skill ${
+                    !canUpgrade && !isProficient
+                      ? "cs-skill--disabled"
                       : ""
                   }`}
-                  onClick={cycleProf}
-                  title={
-                    hasExpertise
-                      ? "Expertise — click to remove"
-                      : isProficient
-                      ? "Proficient — click for expertise"
-                      : "Not proficient — click to add"
-                  }
                 >
-                  {hasExpertise ? "★" : isProficient ? "●" : "○"}
-                </button>
-                <span className="cs-skill__mod">{formatMod(bonus)}</span>
-                <span className="cs-skill__name">{formatSkillName(skill)}</span>
-                <span className="cs-skill__ability">
-                  {ABILITY_SHORT[ability]}
-                </span>
+                  <button
+                    className={`cs-skill__prof ${
+                      hasExpertise
+                        ? "cs-skill__prof--expert"
+                        : isProficient
+                        ? "cs-skill__prof--yes"
+                        : ""
+                    } ${
+                      !canUpgrade && !isProficient
+                        ? "cs-skill__prof--locked"
+                        : ""
+                    }`}
+                    onClick={cycleProf}
+                    title={
+                      hasExpertise
+                        ? "Expertise (2 pts) — click to remove"
+                        : isProficient
+                        ? remainingPoints >= 1
+                          ? "Proficient (1 pt) — click for expertise"
+                          : "Proficient (1 pt) — click to remove"
+                        : remainingPoints >= 1
+                        ? "Not proficient — click to assign (1 pt)"
+                        : "No points remaining"
+                    }
+                  >
+                    {hasExpertise ? "★" : isProficient ? "●" : "○"}
+                  </button>
+                  <span className="cs-skill__mod">{formatMod(bonus)}</span>
+                  <span className="cs-skill__name">
+                    {formatSkillName(skill)}
+                  </span>
+                  <span className="cs-skill__cost">
+                    {hasExpertise
+                      ? "2 pts"
+                      : isProficient
+                      ? "1 pt"
+                      : ""}
+                  </span>
+                  <span className="cs-skill__ability">
+                    {ABILITY_SHORT[ability]}
+                  </span>
+                </div>
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* ── Passive Perception ────────────────────────────── */}
+      {/* ── Passive Scores ────────────────────────────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Passive Scores</h2>
         <div className="cs-passives">
-          {(["perception", "investigation", "insight"] as SkillName[]).map(
+          {(["perception", "insight", "investigation"] as SkillName[]).map(
             (skill) => {
               const ability = SKILL_ABILITY_MAP[skill] as AbilityName;
               const baseMod = abilityModifier(

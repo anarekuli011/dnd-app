@@ -1,9 +1,19 @@
+import { useEffect, useRef } from "react";
 import { useCharacterStore } from "../../store/useCharacterStore";
-import type { Condition, DieType } from "@shared/types/dnd";
+import type { Condition } from "@shared/types/dnd";
+import { abilityModifier } from "@shared/utils/dndMath";
+import {
+  computeSpeed,
+  computeInitiative,
+  computeAC,
+  computeMaxHP,
+  computeHitDice,
+  CLASS_MAP,
+  RACE_MAP,
+  ARMOR_PROFILES,
+} from "@shared/utils/classProgression";
 
 // ── Constants ────────────────────────────────────────────────────
-
-const HIT_DIE_OPTIONS: DieType[] = ["d6", "d8", "d10", "d12"];
 
 const CONDITIONS: Condition[] = [
   "blinded",
@@ -23,22 +33,134 @@ const CONDITIONS: Condition[] = [
   "exhaustion",
 ];
 
+function formatMod(n: number): string {
+  return n >= 0 ? `+${n}` : `${n}`;
+}
+
 // ── Component ────────────────────────────────────────────────────
 
 export default function CombatTab() {
   const { character, updateField, updateNested } = useCharacterStore();
+
+  // Track deps for auto-sync
+  const prevRef = useRef({
+    race: "",
+    class: "",
+    level: 0,
+    dex: 0,
+    con: 0,
+    inventoryHash: "",
+  });
+
+  // Auto-compute and sync combat stats to Firestore
+  useEffect(() => {
+    if (!character) return;
+
+    const dexScore = character.abilityScores.dexterity;
+    const conScore = character.abilityScores.constitution;
+
+    // Simple hash of equipped items to detect inventory changes
+    const equipped = character.inventory.filter((i) => i.equipped);
+    const invHash = equipped
+      .map((i) => `${i.id}:${i.acBonus ?? 0}:${i.name}`)
+      .join("|");
+
+    const prev = prevRef.current;
+    const changed =
+      prev.race !== character.race ||
+      prev.class !== character.class ||
+      prev.level !== character.level ||
+      prev.dex !== dexScore ||
+      prev.con !== conScore ||
+      prev.inventoryHash !== invHash;
+
+    if (!changed) return;
+
+    prevRef.current = {
+      race: character.race,
+      class: character.class,
+      level: character.level,
+      dex: dexScore,
+      con: conScore,
+      inventoryHash: invHash,
+    };
+
+    // Compute new values
+    const speed = computeSpeed(character.race);
+    const initiative = computeInitiative(dexScore);
+    const acResult = computeAC(
+      character.class,
+      dexScore,
+      equipped.map((i) => ({
+        acBonus: i.acBonus,
+        name: i.name,
+        type: i.type,
+      }))
+    );
+    const hpResult = computeMaxHP(character.class, character.level, conScore);
+    const hdResult = computeHitDice(character.class, character.level);
+
+    // Batch updates — only write fields that actually changed
+    if (character.speed !== speed) updateField("speed", speed);
+    if (character.initiative !== initiative)
+      updateField("initiative", initiative);
+    if (character.armorClass !== acResult.total)
+      updateField("armorClass", acResult.total);
+
+    if (character.hitPoints.max !== hpResult.maxHP) {
+      updateNested("hitPoints.max", hpResult.maxHP);
+      // When max HP changes, set current HP to new max (fresh character / level up)
+      if (character.hitPoints.current === prevRef.current.level || character.hitPoints.current >= character.hitPoints.max) {
+        updateNested("hitPoints.current", hpResult.maxHP);
+      }
+    }
+
+    if (character.hitDice.dieType !== hdResult.dieType)
+      updateNested("hitDice.dieType", hdResult.dieType);
+    if (character.hitDice.total !== hdResult.total)
+      updateNested("hitDice.total", hdResult.total);
+  }, [
+    character?.race,
+    character?.class,
+    character?.level,
+    character?.abilityScores.dexterity,
+    character?.abilityScores.constitution,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    character?.inventory
+      .filter((i) => i.equipped)
+      .map((i) => `${i.id}:${i.acBonus}`)
+      .join("|"),
+  ]);
+
   if (!character) return null;
+
+  // ── Compute display values ─────────────────────────────────
+
+  const dexScore = character.abilityScores.dexterity;
+  const conScore = character.abilityScores.constitution;
+  const conMod = abilityModifier(conScore);
+
+  const equipped = character.inventory.filter((i) => i.equipped);
+  const acBreakdown = computeAC(
+    character.class,
+    dexScore,
+    equipped.map((i) => ({ acBonus: i.acBonus, name: i.name, type: i.type }))
+  );
+  const hpBreakdown = computeMaxHP(
+    character.class,
+    character.level,
+    conScore
+  );
+  const hdInfo = computeHitDice(character.class, character.level);
 
   const hp = character.hitPoints;
   const ds = character.deathSaves;
-  const hd = character.hitDice;
+  const hpPercent = hp.max > 0 ? Math.round((hp.current / hp.max) * 100) : 0;
 
-  // ── HP helpers ───────────────────────────────────────────────
-
-  function adjustHP(delta: number) {
-    const next = Math.max(0, Math.min(hp.max + hp.temporary, hp.current + delta));
-    updateNested("hitPoints.current", next);
-  }
+  // HP bar color based on percentage
+  let hpBarClass = "";
+  if (hpPercent <= 25) hpBarClass = "cs-hp__bar--critical";
+  else if (hpPercent <= 50) hpBarClass = "cs-hp__bar--low";
 
   function toggleCondition(c: Condition) {
     const has = character!.conditions.includes(c);
@@ -54,63 +176,99 @@ export default function CombatTab() {
 
   return (
     <div className="cs-tab cs-tab--combat">
-      {/* ── Core combat stats ─────────────────────────────── */}
+      {/* ── Combat Stats (read-only) ──────────────────────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Combat Stats</h2>
+        {(!character.race || !character.class) && (
+          <p className="cs-section__hint">
+            Select a race and class on the Overview tab to compute combat stats.
+          </p>
+        )}
         <div className="cs-combat-stats">
-          <div className="cs-stat-block">
+          {/* AC */}
+          <div
+            className="cs-stat-block cs-stat-block--readonly"
+            title={`${acBreakdown.profileLabel}: ${acBreakdown.baseAC}\nDEX bonus: +${acBreakdown.dexBonus}${acBreakdown.armorBonus ? `\nArmor: +${acBreakdown.armorBonus}` : ""}${acBreakdown.shieldBonus ? `\nShield: +${acBreakdown.shieldBonus}` : ""}\nTotal: ${acBreakdown.total}`}
+          >
             <span className="cs-stat-block__label">Armor Class</span>
-            <input
-              className="cs-stat-block__value"
-              type="number"
-              value={character.armorClass}
-              onChange={(e) =>
-                updateField("armorClass", Math.max(0, Number(e.target.value)))
-              }
-            />
+            <span className="cs-stat-block__value cs-stat-block__value--readonly">
+              {character.armorClass}
+            </span>
+            <span className="cs-stat-block__detail">
+              {acBreakdown.profileLabel}
+            </span>
           </div>
-          <div className="cs-stat-block">
+
+          {/* Initiative */}
+          <div
+            className="cs-stat-block cs-stat-block--readonly"
+            title={`DEX modifier: ${formatMod(abilityModifier(dexScore))}`}
+          >
             <span className="cs-stat-block__label">Initiative</span>
-            <input
-              className="cs-stat-block__value"
-              type="number"
-              value={character.initiative}
-              onChange={(e) =>
-                updateField("initiative", Number(e.target.value))
-              }
-            />
+            <span className="cs-stat-block__value cs-stat-block__value--readonly">
+              {formatMod(character.initiative)}
+            </span>
+            <span className="cs-stat-block__detail">DEX mod</span>
           </div>
-          <div className="cs-stat-block">
+
+          {/* Speed */}
+          <div
+            className="cs-stat-block cs-stat-block--readonly"
+            title={`Base speed from ${character.race || "race"}`}
+          >
             <span className="cs-stat-block__label">Speed</span>
-            <input
-              className="cs-stat-block__value"
-              type="number"
-              step={5}
-              min={0}
-              value={character.speed}
-              onChange={(e) =>
-                updateField("speed", Math.max(0, Number(e.target.value)))
-              }
-            />
+            <span className="cs-stat-block__value cs-stat-block__value--readonly">
+              {character.speed}
+            </span>
+            <span className="cs-stat-block__detail">
+              {character.race || "—"} base
+            </span>
           </div>
+
+          {/* Proficiency Bonus (for quick reference) */}
+          <div className="cs-stat-block cs-stat-block--readonly">
+            <span className="cs-stat-block__label">Prof. Bonus</span>
+            <span className="cs-stat-block__value cs-stat-block__value--readonly">
+              +{character.proficiencyBonus}
+            </span>
+            <span className="cs-stat-block__detail">Level {character.level}</span>
+          </div>
+        </div>
+
+        {/* AC breakdown detail */}
+        <div className="cs-stat-breakdown">
+          <span className="cs-stat-breakdown__item">
+            Base {acBreakdown.baseAC}
+          </span>
+          <span className="cs-stat-breakdown__item">
+            + DEX {formatMod(acBreakdown.dexBonus)}
+          </span>
+          {acBreakdown.armorBonus > 0 && (
+            <span className="cs-stat-breakdown__item">
+              + Armor {formatMod(acBreakdown.armorBonus)}
+            </span>
+          )}
+          {acBreakdown.shieldBonus > 0 && (
+            <span className="cs-stat-breakdown__item">
+              + Shield {formatMod(acBreakdown.shieldBonus)}
+            </span>
+          )}
+          <span className="cs-stat-breakdown__item cs-stat-breakdown__item--total">
+            = {acBreakdown.total} AC
+          </span>
         </div>
       </section>
 
-      {/* ── Hit Points ────────────────────────────────────── */}
+      {/* ── Hit Points (read-only) ────────────────────────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Hit Points</h2>
         <div className="cs-hp">
           <div className="cs-hp__bar-container">
             <div
-              className="cs-hp__bar"
+              className={`cs-hp__bar ${hpBarClass}`}
               style={{
                 width: `${Math.min(100, (hp.current / (hp.max || 1)) * 100)}%`,
               }}
-              data-percent={
-                hp.max > 0
-                  ? Math.round((hp.current / hp.max) * 100)
-                  : 0
-              }
             />
             <span className="cs-hp__bar-text">
               {hp.current} / {hp.max}
@@ -118,62 +276,45 @@ export default function CombatTab() {
             </span>
           </div>
 
-          <div className="cs-hp__controls">
-            <button className="cs-hp__btn cs-hp__btn--dmg" onClick={() => adjustHP(-1)}>
-              −1
-            </button>
-            <button className="cs-hp__btn cs-hp__btn--dmg" onClick={() => adjustHP(-5)}>
-              −5
-            </button>
-            <button className="cs-hp__btn cs-hp__btn--heal" onClick={() => adjustHP(1)}>
-              +1
-            </button>
-            <button className="cs-hp__btn cs-hp__btn--heal" onClick={() => adjustHP(5)}>
-              +5
-            </button>
+          <div className="cs-hp-stats">
+            <div className="cs-hp-stat">
+              <span className="cs-hp-stat__label">Max HP</span>
+              <span className="cs-hp-stat__value">{hp.max}</span>
+            </div>
+            <div className="cs-hp-stat">
+              <span className="cs-hp-stat__label">Current HP</span>
+              <span className="cs-hp-stat__value cs-hp-stat__value--current">
+                {hp.current}
+              </span>
+            </div>
+            <div className="cs-hp-stat">
+              <span className="cs-hp-stat__label">Temp HP</span>
+              <span className="cs-hp-stat__value">{hp.temporary}</span>
+            </div>
           </div>
 
-          <div className="cs-grid cs-grid--3">
-            <label className="cs-field">
-              <span className="cs-field__label">Max HP</span>
-              <input
-                className="cs-field__input cs-field__input--narrow"
-                type="number"
-                min={1}
-                value={hp.max}
-                onChange={(e) =>
-                  updateNested("hitPoints.max", Math.max(1, Number(e.target.value)))
-                }
-              />
-            </label>
-            <label className="cs-field">
-              <span className="cs-field__label">Current HP</span>
-              <input
-                className="cs-field__input cs-field__input--narrow"
-                type="number"
-                min={0}
-                value={hp.current}
-                onChange={(e) =>
-                  updateNested("hitPoints.current", Math.max(0, Number(e.target.value)))
-                }
-              />
-            </label>
-            <label className="cs-field">
-              <span className="cs-field__label">Temp HP</span>
-              <input
-                className="cs-field__input cs-field__input--narrow"
-                type="number"
-                min={0}
-                value={hp.temporary}
-                onChange={(e) =>
-                  updateNested(
-                    "hitPoints.temporary",
-                    Math.max(0, Number(e.target.value))
-                  )
-                }
-              />
-            </label>
+          {/* HP formula breakdown */}
+          <div className="cs-stat-breakdown">
+            <span className="cs-stat-breakdown__item">
+              {hpBreakdown.hitDie} (max {hpBreakdown.hitDieMax})
+            </span>
+            {character.level > 1 && (
+              <span className="cs-stat-breakdown__item">
+                + {character.level - 1} × {hpBreakdown.avgRoll} (avg roll)
+              </span>
+            )}
+            <span className="cs-stat-breakdown__item">
+              + {character.level} × {formatMod(conMod)} (CON)
+            </span>
+            <span className="cs-stat-breakdown__item cs-stat-breakdown__item--total">
+              = {hp.max} HP
+            </span>
           </div>
+
+          <p className="cs-section__hint">
+            HP will be managed by the combat system when integrated. Max HP
+            auto-scales with your class, level, and Constitution.
+          </p>
         </div>
       </section>
 
@@ -231,54 +372,32 @@ export default function CombatTab() {
         </div>
       </section>
 
-      {/* ── Hit Dice ──────────────────────────────────────── */}
+      {/* ── Hit Dice (auto-computed) ──────────────────────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Hit Dice</h2>
-        <div className="cs-grid cs-grid--3">
-          <label className="cs-field">
-            <span className="cs-field__label">Die Type</span>
-            <select
-              className="cs-field__input"
-              value={hd.dieType}
-              onChange={(e) =>
-                updateNested("hitDice.dieType", e.target.value)
-              }
-            >
-              {HIT_DIE_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="cs-field">
-            <span className="cs-field__label">Total</span>
-            <input
-              className="cs-field__input cs-field__input--narrow"
-              type="number"
-              min={1}
-              value={hd.total}
-              onChange={(e) =>
-                updateNested("hitDice.total", Math.max(1, Number(e.target.value)))
-              }
-            />
-          </label>
-          <label className="cs-field">
-            <span className="cs-field__label">Used</span>
-            <input
-              className="cs-field__input cs-field__input--narrow"
-              type="number"
-              min={0}
-              max={hd.total}
-              value={hd.used}
-              onChange={(e) =>
-                updateNested(
-                  "hitDice.used",
-                  Math.max(0, Math.min(hd.total, Number(e.target.value)))
-                )
-              }
-            />
-          </label>
+        <div className="cs-hit-dice">
+          <div className="cs-hit-dice__info">
+            <span className="cs-hit-dice__die">{hdInfo.dieType}</span>
+            <span className="cs-hit-dice__count">
+              {character.hitDice.total - character.hitDice.used} /{" "}
+              {character.hitDice.total} remaining
+            </span>
+          </div>
+          <div className="cs-hit-dice__pips">
+            {Array.from({ length: character.hitDice.total }, (_, i) => (
+              <span
+                key={i}
+                className={`cs-hit-dice__pip ${
+                  i < character.hitDice.used ? "cs-hit-dice__pip--used" : ""
+                }`}
+              />
+            ))}
+          </div>
+          <p className="cs-section__hint">
+            {hdInfo.dieType} hit die from{" "}
+            {character.class || "class"}. {character.hitDice.total} total
+            (1 per level). Used dice recover on long rest.
+          </p>
         </div>
       </section>
 

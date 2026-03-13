@@ -40,24 +40,35 @@ export type AbilityScores = Record<AbilityName, number>;
 // ── Skills ───────────────────────────────────────────────────────
 
 export const SKILL_ABILITY_MAP = {
-  acrobatics: "dexterity",
-  animalHandling: "wisdom",
-  arcana: "intelligence",
-  athletics: "strength",
-  deception: "charisma",
-  history: "intelligence",
-  insight: "wisdom",
-  intimidation: "charisma",
-  investigation: "intelligence",
-  medicine: "wisdom",
-  nature: "intelligence",
-  perception: "wisdom",
-  performance: "charisma",
-  persuasion: "charisma",
-  religion: "intelligence",
-  sleightOfHand: "dexterity",
-  stealth: "dexterity",
-  survival: "wisdom",
+  // ── Strength ─────────────────────────
+  athletics: "strength",      // climbing, swimming, jumping
+  intimidation: "strength",   // physical threats, imposing presence
+  bruteForce: "strength",     // breaking objects, forcing doors, grappling
+ 
+  // ── Dexterity ────────────────────────
+  acrobatics: "dexterity",    // balance, tumbling, aerial manoeuvres
+  stealth: "dexterity",       // moving unseen, hiding, sneaking
+  sleightOfHand: "dexterity", // pickpocketing, lockpicking, fine motor tricks
+ 
+  // ── Constitution ─────────────────────
+  endurance: "constitution",  // stamina, resisting exhaustion, forced marches
+  survival: "constitution",   // wilderness hardship, foraging, weathering elements
+  medicine: "constitution",   // tending wounds, stabilising the dying, anatomy
+ 
+  // ── Intelligence ─────────────────────
+  arcana: "intelligence",     // magical lore, identifying spells, planar knowledge
+  investigation: "intelligence", // deduction, searching for clues, analysing evidence
+  history: "intelligence",    // recalling lore, recognising legends, cultural knowledge
+ 
+  // ── Wisdom ───────────────────────────
+  perception: "wisdom",       // noticing hidden things, keen senses, awareness
+  insight: "wisdom",          // reading intentions, detecting lies, empathy
+  nature: "wisdom",           // animal handling, flora & fauna, natural phenomena
+ 
+  // ── Charisma ─────────────────────────
+  deception: "charisma",      // lying, disguises, misleading others
+  persuasion: "charisma",     // negotiation, diplomacy, convincing others
+  performance: "charisma",    // entertaining, oratory, artistic expression
 } as const;
 
 export type SkillName = keyof typeof SKILL_ABILITY_MAP;

@@ -1,6 +1,19 @@
+import { useEffect, useRef } from "react";
 import { useCharacterStore } from "../../store/useCharacterStore";
 import { ABILITY_NAMES, type AbilityName } from "@shared/types/dnd";
 import { abilityModifier, proficiencyBonus } from "@shared/utils/dndMath";
+import {
+  RACES,
+  RACE_MAP,
+  CLASSES,
+  CLASS_MAP,
+  computeAbilityScores,
+  abilityScoreBreakdown,
+  computeProficiencies,
+  getUnresolvedChoices,
+  parseChoiceMarker,
+  PROFICIENCY_CHOICES,
+} from "@shared/utils/classProgression";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -13,55 +26,17 @@ const ABILITY_LABELS: Record<AbilityName, string> = {
   charisma: "CHA",
 };
 
-// ── Class definitions ────────────────────────────────────────────
+const GROWTH_LABELS: Record<string, string> = {
+  primary: "★ Primary",
+  secondary: "◆ Secondary",
+  tertiary: "● Tertiary",
+};
 
-interface ClassDef {
-  name: string;
-  description: string;
-}
-
-const CLASSES: ClassDef[] = [
-  { name: "Rogue",       description: "A stealthy trickster who uses cunning and agility to overcome obstacles and outmanoeuvre foes." },
-  { name: "Archer",      description: "A sharpshooter who masters ranged combat, raining precise death from a distance." },
-  { name: "Wizard",      description: "A scholarly spellcaster who wields arcane magic drawn from years of intense study." },
-  { name: "Priest",      description: "A divine healer and protector, channelling holy power to mend wounds and shield allies." },
-  { name: "Warrior",     description: "A battle-hardened fighter who relies on raw strength and martial prowess." },
-  { name: "Knight",      description: "An armoured champion bound by a code of honour, excelling in mounted and melee combat." },
-  { name: "Paladin",     description: "A holy warrior who combines martial skill with divine magic to smite evil." },
-  { name: "Assassin",    description: "A deadly shadow operative who eliminates targets with precision and lethal efficiency." },
-  { name: "Necromancer", description: "A dark mage who commands the forces of death, raising undead servants to do their bidding." },
-  { name: "Huntress",    description: "A swift wilderness tracker who blends primal instincts with deadly combat skills." },
-  { name: "Mystic",      description: "A psionically gifted adept who bends reality through sheer force of will." },
-  { name: "Trickster",   description: "A chaotic illusionist who deceives enemies and warps perception to gain the upper hand." },
-  { name: "Sorcerer",    description: "A natural-born spellcaster whose innate magical bloodline fuels devastating power." },
-  { name: "Ninja",       description: "A disciplined shadow warrior combining martial arts, stealth, and surprise attacks." },
-  { name: "Samurai",     description: "A noble swordmaster who channels unwavering focus and discipline into devastating strikes." },
-  { name: "Bard",        description: "A charismatic performer who weaves magic through music, inspiring allies and beguiling foes." },
-  { name: "Summoner",    description: "A conjurer who calls forth creatures and elemental forces to fight alongside them." },
-  { name: "Kensei",      description: "A weapon master who achieves supernatural perfection through lifelong devotion to a single blade." },
-  { name: "Druid",       description: "A guardian of nature who shapeshifts and commands the primal forces of the wild." },
-];
-
-const CLASS_MAP = new Map(CLASSES.map((c) => [c.name, c]));
-
-// ── Race definitions ─────────────────────────────────────────────
-
-interface RaceDef {
-  name: string;
-  description: string;
-}
-
-const RACES: RaceDef[] = [
-  { name: "Human",  description: "Versatile and ambitious, humans adapt to any role and thrive through sheer determination and resourcefulness." },
-  { name: "Elf",    description: "Graceful and long-lived, elves possess keen senses, natural affinity for magic, and an unearthly elegance." },
-  { name: "Dwarf",  description: "Stout and resilient, dwarves are master craftsmen and fierce warriors forged in mountain strongholds." },
-  { name: "Orc",    description: "Powerful and relentless, orcs channel primal fury into raw combat strength and unwavering endurance." },
-  { name: "Goblin", description: "Small but cunning, goblins survive through wit, speed, and a knack for turning chaos to their advantage." },
-  { name: "Demon",  description: "Born of infernal planes, demons wield dark power and resist fire, carrying an aura of dread wherever they go." },
-  { name: "Angel",  description: "Celestial beings touched by divine light, angels radiate holy energy and inspire courage in their allies." },
-];
-
-const RACE_MAP = new Map(RACES.map((r) => [r.name, r]));
+const GROWTH_COLORS: Record<string, string> = {
+  primary: "cs-ability--primary",
+  secondary: "cs-ability--secondary",
+  tertiary: "cs-ability--tertiary",
+};
 
 const ALIGNMENTS = [
   "",
@@ -84,9 +59,121 @@ function formatModifier(mod: number): string {
 
 export default function OverviewTab() {
   const { character, updateField, updateNested } = useCharacterStore();
+
+  // Track previous race/class/level to detect changes
+  const prevRef = useRef({ race: "", class: "", level: 0 });
+
+  // Auto-compute ability scores when race, class, or level changes
+  useEffect(() => {
+    if (!character) return;
+
+    const prev = prevRef.current;
+    const changed =
+      prev.race !== character.race ||
+      prev.class !== character.class ||
+      prev.level !== character.level;
+
+    if (changed) {
+      prevRef.current = {
+        race: character.race,
+        class: character.class,
+        level: character.level,
+      };
+
+      const newScores = computeAbilityScores(
+        character.race,
+        character.class,
+        character.level
+      );
+
+      // Only write if scores actually differ (avoids infinite loops)
+      const current = character.abilityScores;
+      const differs = ABILITY_NAMES.some(
+        (a) => current[a] !== newScores[a]
+      );
+
+      if (differs) {
+        updateField("abilityScores", newScores);
+      }
+
+      // Compute proficiencies from race + class, resolving any player choices
+      const choices =
+        (character as unknown as Record<string, unknown>).proficiencyChoices as
+          | Record<string, string>
+          | undefined ?? {};
+      const profs = computeProficiencies(
+        character.race,
+        character.class,
+        choices
+      );
+
+      // Only sync resolved values (no CHOOSE: markers) to Firestore
+      const resolved = (arr: string[]) =>
+        arr.filter((s) => !s.startsWith("CHOOSE:"));
+
+      const langsDiffer =
+        JSON.stringify(character.languages) !==
+        JSON.stringify(resolved(profs.languages));
+      const armorDiffer =
+        JSON.stringify(character.armorProficiencies) !==
+        JSON.stringify(resolved(profs.armorProficiencies));
+      const weaponDiffer =
+        JSON.stringify(character.weaponProficiencies) !==
+        JSON.stringify(resolved(profs.weaponProficiencies));
+      const toolDiffer =
+        JSON.stringify(character.toolProficiencies) !==
+        JSON.stringify(resolved(profs.toolProficiencies));
+
+      if (langsDiffer) updateField("languages", resolved(profs.languages));
+      if (armorDiffer)
+        updateField("armorProficiencies", resolved(profs.armorProficiencies));
+      if (weaponDiffer)
+        updateField("weaponProficiencies", resolved(profs.weaponProficiencies));
+      if (toolDiffer)
+        updateField("toolProficiencies", resolved(profs.toolProficiencies));
+    }
+  }, [character?.race, character?.class, character?.level]);
+
   if (!character) return null;
 
   const profBonus = proficiencyBonus(character.level);
+  const breakdown = abilityScoreBreakdown(
+    character.race,
+    character.class,
+    character.level
+  );
+
+  // ── Proficiency choices ──────────────────────────────────────
+
+  const choices =
+    ((character as unknown as Record<string, unknown>).proficiencyChoices as
+      | Record<string, string>
+      | undefined) ?? {};
+
+  const unresolvedChoices = getUnresolvedChoices(
+    character.race,
+    character.class
+  );
+
+  function handleChoice(marker: string, value: string) {
+    if (!character) return;
+    const updated = { ...choices, [marker]: value };
+    updateNested("proficiencyChoices", updated);
+
+    // Immediately recompute and sync proficiencies
+    const profs = computeProficiencies(
+      character.race,
+      character.class,
+      updated
+    );
+    const resolved = (arr: string[]) =>
+      arr.filter((s) => !s.startsWith("CHOOSE:"));
+
+    updateField("languages", resolved(profs.languages));
+    updateField("armorProficiencies", resolved(profs.armorProficiencies));
+    updateField("weaponProficiencies", resolved(profs.weaponProficiencies));
+    updateField("toolProficiencies", resolved(profs.toolProficiencies));
+  }
 
   return (
     <div className="cs-tab cs-tab--overview">
@@ -164,7 +251,10 @@ export default function OverviewTab() {
               min={0}
               value={character.experiencePoints ?? 0}
               onChange={(e) =>
-                updateField("experiencePoints", Math.max(0, Number(e.target.value)))
+                updateField(
+                  "experiencePoints",
+                  Math.max(0, Number(e.target.value))
+                )
               }
             />
           </label>
@@ -220,36 +310,72 @@ export default function OverviewTab() {
         )}
       </section>
 
-      {/* ── Ability Scores ────────────────────────────────── */}
+      {/* ── Ability Scores (auto-computed, read-only) ──────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Ability Scores</h2>
+        {(!character.race || !character.class) && (
+          <p className="cs-section__hint">
+            Select a race and class above to compute your ability scores.
+          </p>
+        )}
         <div className="cs-abilities">
           {ABILITY_NAMES.map((ability) => {
+            const bd = breakdown[ability];
             const score = character.abilityScores[ability];
             const mod = abilityModifier(score);
+            const growthClass = bd.growthLabel
+              ? GROWTH_COLORS[bd.growthLabel]
+              : "";
+
             return (
-              <div key={ability} className="cs-ability">
+              <div
+                key={ability}
+                className={`cs-ability cs-ability--readonly ${growthClass}`}
+                title={buildTooltip(ability, bd)}
+              >
+                {bd.growthLabel && (
+                  <span className="cs-ability__badge">
+                    {GROWTH_LABELS[bd.growthLabel]}
+                  </span>
+                )}
                 <span className="cs-ability__label">
                   {ABILITY_LABELS[ability]}
                 </span>
-                <input
-                  className="cs-ability__score"
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={score}
-                  onChange={(e) =>
-                    updateNested(
-                      `abilityScores.${ability}`,
-                      Math.max(1, Math.min(30, Number(e.target.value)))
-                    )
-                  }
-                />
+                <span className="cs-ability__score cs-ability__score--locked">
+                  {score}
+                </span>
                 <span className="cs-ability__mod">{formatModifier(mod)}</span>
+                <span className="cs-ability__breakdown">
+                  {bd.raceBonus > 0 && (
+                    <span className="cs-ability__tag cs-ability__tag--race">
+                      +{bd.raceBonus} race
+                    </span>
+                  )}
+                  {bd.classGrowth > 0 && (
+                    <span className="cs-ability__tag cs-ability__tag--class">
+                      +{bd.classGrowth} class
+                    </span>
+                  )}
+                </span>
               </div>
             );
           })}
         </div>
+
+        {/* ── Growth legend ────────────────────────────────── */}
+        {character.class && CLASS_MAP.has(character.class) && (
+          <div className="cs-growth-legend">
+            <span className="cs-growth-legend__item cs-growth-legend__item--primary">
+              ★ Primary — +1 every 2 levels
+            </span>
+            <span className="cs-growth-legend__item cs-growth-legend__item--secondary">
+              ◆ Secondary — +1 every 3 levels
+            </span>
+            <span className="cs-growth-legend__item cs-growth-legend__item--tertiary">
+              ● Tertiary — +1 every 5 levels
+            </span>
+          </div>
+        )}
       </section>
 
       {/* ── Saving Throws ─────────────────────────────────── */}
@@ -283,68 +409,136 @@ export default function OverviewTab() {
         </div>
       </section>
 
-      {/* ── Proficiencies ─────────────────────────────────── */}
+      {/* ── Proficiency Choices (dropdowns) ────────────── */}
+      {unresolvedChoices.length > 0 && (
+        <section className="cs-section">
+          <h2 className="cs-section__title">Choose Your Proficiencies</h2>
+          <div className="cs-grid cs-grid--2">
+            {unresolvedChoices.map((marker) => {
+              const category = parseChoiceMarker(marker)!;
+              const options = PROFICIENCY_CHOICES[category] ?? [];
+              const currentValue = choices[marker] ?? "";
+              const label =
+                category === "language"
+                  ? "Bonus Language"
+                  : category === "weapon"
+                  ? "Weapon of Choice"
+                  : `Choose ${category}`;
+
+              return (
+                <label key={marker} className="cs-field">
+                  <span className="cs-field__label">{label}</span>
+                  <select
+                    className="cs-field__input"
+                    value={currentValue}
+                    onChange={(e) => handleChoice(marker, e.target.value)}
+                  >
+                    <option value="">— Select —</option>
+                    {options.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Proficiencies (auto-computed, read-only) ──── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Proficiencies</h2>
+        {(!character.race && !character.class) && (
+          <p className="cs-section__hint">
+            Select a race and class above to see your proficiencies.
+          </p>
+        )}
         <div className="cs-grid cs-grid--2">
-          <label className="cs-field">
+          <div className="cs-field">
             <span className="cs-field__label">Languages</span>
-            <input
-              className="cs-field__input"
-              value={character.languages.join(", ")}
-              onChange={(e) =>
-                updateField(
-                  "languages",
-                  e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                )
-              }
-              placeholder="Common, Elvish, …"
-            />
-          </label>
-          <label className="cs-field">
+            <div className="cs-prof-list">
+              {character.languages.length > 0 ? (
+                character.languages.map((l) => (
+                  <span key={l} className="cs-prof-tag cs-prof-tag--race">
+                    {l}
+                  </span>
+                ))
+              ) : (
+                <span className="cs-prof-empty">None</span>
+              )}
+            </div>
+            {character.race && (
+              <span className="cs-prof-source">From: {character.race}</span>
+            )}
+          </div>
+          <div className="cs-field">
             <span className="cs-field__label">Tool Proficiencies</span>
-            <input
-              className="cs-field__input"
-              value={character.toolProficiencies.join(", ")}
-              onChange={(e) =>
-                updateField(
-                  "toolProficiencies",
-                  e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                )
-              }
-              placeholder="Thieves' Tools, …"
-            />
-          </label>
-          <label className="cs-field">
+            <div className="cs-prof-list">
+              {character.toolProficiencies.length > 0 ? (
+                character.toolProficiencies.map((t) => (
+                  <span key={t} className="cs-prof-tag cs-prof-tag--class">
+                    {t}
+                  </span>
+                ))
+              ) : (
+                <span className="cs-prof-empty">None</span>
+              )}
+            </div>
+            {character.class && (
+              <span className="cs-prof-source">From: {character.class}</span>
+            )}
+          </div>
+          <div className="cs-field">
             <span className="cs-field__label">Armor Proficiencies</span>
-            <input
-              className="cs-field__input"
-              value={character.armorProficiencies.join(", ")}
-              onChange={(e) =>
-                updateField(
-                  "armorProficiencies",
-                  e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                )
-              }
-              placeholder="Light, Medium, …"
-            />
-          </label>
-          <label className="cs-field">
+            <div className="cs-prof-list">
+              {character.armorProficiencies.length > 0 ? (
+                character.armorProficiencies.map((a) => (
+                  <span key={a} className="cs-prof-tag cs-prof-tag--class">
+                    {a}
+                  </span>
+                ))
+              ) : (
+                <span className="cs-prof-empty">None</span>
+              )}
+            </div>
+            {character.class && (
+              <span className="cs-prof-source">From: {character.class}</span>
+            )}
+          </div>
+          <div className="cs-field">
             <span className="cs-field__label">Weapon Proficiencies</span>
-            <input
-              className="cs-field__input"
-              value={character.weaponProficiencies.join(", ")}
-              onChange={(e) =>
-                updateField(
-                  "weaponProficiencies",
-                  e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                )
-              }
-              placeholder="Simple, Martial, …"
-            />
-          </label>
+            <div className="cs-prof-list">
+              {character.weaponProficiencies.length > 0 ? (
+                character.weaponProficiencies.map((w) => (
+                  <span key={w} className="cs-prof-tag cs-prof-tag--class">
+                    {w}
+                  </span>
+                ))
+              ) : (
+                <span className="cs-prof-empty">None</span>
+              )}
+            </div>
+            {character.class && (
+              <span className="cs-prof-source">From: {character.class}</span>
+            )}
+          </div>
         </div>
       </section>
     </div>
   );
+}
+
+// ── Tooltip builder ──────────────────────────────────────────────
+
+function buildTooltip(
+  ability: AbilityName,
+  bd: { base: number; raceBonus: number; classGrowth: number; total: number }
+): string {
+  const parts = [`Base: ${bd.base}`];
+  if (bd.raceBonus) parts.push(`Race: +${bd.raceBonus}`);
+  if (bd.classGrowth) parts.push(`Class: +${bd.classGrowth}`);
+  parts.push(`Total: ${bd.total}`);
+  return `${ability.charAt(0).toUpperCase() + ability.slice(1)}\n${parts.join("\n")}`;
 }
