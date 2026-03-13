@@ -8,7 +8,7 @@
 // Players cannot manually adjust ability scores.
 // ══════════════════════════════════════════════════════════════════
 
-import type { AbilityName, AbilityScores, DieType } from "@shared/types/dnd";
+import type { AbilityName, AbilityScores, DieType, SpellSchool } from "@shared/types/dnd";
 import { ABILITY_NAMES, DIE_MAX } from "@shared/types/dnd";
 
 // ── Base score for all abilities ─────────────────────────────────
@@ -25,6 +25,8 @@ export interface RaceDef {
   bonuses: Partial<Record<AbilityName, number>>;
   speed: number;
   languages: string[];
+  /** Bonus spell slots: map of spell level → extra slots */
+  bonusSlots: Partial<Record<number, number>>;
 }
 
 export const RACES: RaceDef[] = [
@@ -35,6 +37,7 @@ export const RACES: RaceDef[] = [
     bonuses: { strength: 1, dexterity: 1, constitution: 1, intelligence: 1, wisdom: 1, charisma: 1 },
     speed: 30,
     languages: ["Common", "CHOOSE:language"],
+    bonusSlots: { 1: 1 },
   },
   {
     name: "Elf",
@@ -43,6 +46,7 @@ export const RACES: RaceDef[] = [
     bonuses: { dexterity: 2, intelligence: 1, wisdom: 1 },
     speed: 35,
     languages: ["Common", "Elvish"],
+    bonusSlots: { 1: 1 },
   },
   {
     name: "Dwarf",
@@ -51,6 +55,7 @@ export const RACES: RaceDef[] = [
     bonuses: { constitution: 2, strength: 1, wisdom: 1 },
     speed: 25,
     languages: ["Common", "Dwarvish"],
+    bonusSlots: {},
   },
   {
     name: "Orc",
@@ -59,6 +64,7 @@ export const RACES: RaceDef[] = [
     bonuses: { strength: 2, constitution: 2 },
     speed: 30,
     languages: ["Common", "Orcish"],
+    bonusSlots: {},
   },
   {
     name: "Goblin",
@@ -67,6 +73,7 @@ export const RACES: RaceDef[] = [
     bonuses: { dexterity: 2, charisma: 1, intelligence: 1 },
     speed: 30,
     languages: ["Common", "Goblin"],
+    bonusSlots: { 1: 1 },
   },
   {
     name: "Demon",
@@ -75,6 +82,7 @@ export const RACES: RaceDef[] = [
     bonuses: { charisma: 2, strength: 1, intelligence: 1 },
     speed: 30,
     languages: ["Common", "Infernal"],
+    bonusSlots: { 2: 1 },
   },
   {
     name: "Angel",
@@ -83,6 +91,7 @@ export const RACES: RaceDef[] = [
     bonuses: { wisdom: 2, charisma: 1, constitution: 1 },
     speed: 35,
     languages: ["Common", "Celestial"],
+    bonusSlots: { 2: 1 },
   },
 ];
 
@@ -110,6 +119,10 @@ export interface ClassDef {
   armorProficiencies: string[];
   weaponProficiencies: string[];
   toolProficiencies: string[];
+  spellcastingAbility: AbilityName;
+  allowedSchools: SpellSchool[];
+  /** full = slots at Lv1 up to Lv9, half = slots at Lv2 up to Lv5, third = slots at Lv3 up to Lv3 */
+  casterType: "full" | "half" | "third";
 }
 
 export const CLASSES: ClassDef[] = [
@@ -123,6 +136,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor"],
     weaponProficiencies: ["Simple Weapons", "Shortsword", "Hand Crossbow", "Rapier"],
     toolProficiencies: ["Thieves' Tools"],
+    spellcastingAbility: "intelligence",
+    allowedSchools: ["shadowcraft", "illusion", "enchantment"],
+    casterType: "third",
   },
   {
     name: "Archer",
@@ -134,6 +150,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor"],
     weaponProficiencies: ["Simple Weapons", "Longbow", "Shortbow", "Hand Crossbow"],
     toolProficiencies: ["Fletcher's Tools"],
+    spellcastingAbility: "wisdom",
+    allowedSchools: ["primal", "divination", "evocation"],
+    casterType: "half",
   },
   {
     name: "Wizard",
@@ -145,6 +164,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: [],
     weaponProficiencies: ["Dagger", "Quarterstaff", "Light Crossbow"],
     toolProficiencies: ["Arcane Focus"],
+    spellcastingAbility: "intelligence",
+    allowedSchools: ["evocation", "abjuration", "conjuration", "divination", "transmutation"],
+    casterType: "full",
   },
   {
     name: "Priest",
@@ -156,6 +178,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor", "Shields"],
     weaponProficiencies: ["Simple Weapons", "Mace"],
     toolProficiencies: ["Holy Symbol", "Herbalism Kit"],
+    spellcastingAbility: "wisdom",
+    allowedSchools: ["divine", "abjuration", "necromancy", "divination"],
+    casterType: "half",
   },
   {
     name: "Warrior",
@@ -167,6 +192,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor", "Heavy Armor", "Shields"],
     weaponProficiencies: ["Simple Weapons", "Martial Weapons"],
     toolProficiencies: [],
+    spellcastingAbility: "strength",
+    allowedSchools: ["battlecraft", "evocation"],
+    casterType: "third",
   },
   {
     name: "Knight",
@@ -178,6 +206,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor", "Heavy Armor", "Shields"],
     weaponProficiencies: ["Simple Weapons", "Martial Weapons", "Lance"],
     toolProficiencies: ["Mount Handling Kit"],
+    spellcastingAbility: "charisma",
+    allowedSchools: ["battlecraft", "divine", "abjuration"],
+    casterType: "third",
   },
   {
     name: "Paladin",
@@ -189,6 +220,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor", "Heavy Armor", "Shields"],
     weaponProficiencies: ["Simple Weapons", "Martial Weapons"],
     toolProficiencies: ["Holy Symbol"],
+    spellcastingAbility: "charisma",
+    allowedSchools: ["divine", "abjuration", "evocation"],
+    casterType: "half",
   },
   {
     name: "Assassin",
@@ -200,6 +234,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor"],
     weaponProficiencies: ["Simple Weapons", "Shortsword", "Dagger", "Blowgun", "Hand Crossbow"],
     toolProficiencies: ["Poisoner's Kit", "Thieves' Tools"],
+    spellcastingAbility: "intelligence",
+    allowedSchools: ["shadowcraft", "necromancy", "illusion"],
+    casterType: "third",
   },
   {
     name: "Necromancer",
@@ -211,6 +248,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: [],
     weaponProficiencies: ["Dagger", "Quarterstaff", "Sickle"],
     toolProficiencies: ["Arcane Focus", "Alchemist's Supplies"],
+    spellcastingAbility: "intelligence",
+    allowedSchools: ["necromancy", "conjuration", "divination", "enchantment"],
+    casterType: "full",
   },
   {
     name: "Huntress",
@@ -222,6 +262,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor"],
     weaponProficiencies: ["Simple Weapons", "Longbow", "Shortsword", "Spear"],
     toolProficiencies: ["Herbalism Kit", "Trapper's Kit"],
+    spellcastingAbility: "wisdom",
+    allowedSchools: ["primal", "divination", "transmutation"],
+    casterType: "half",
   },
   {
     name: "Mystic",
@@ -233,6 +276,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: [],
     weaponProficiencies: ["Dagger", "Quarterstaff"],
     toolProficiencies: ["Psionic Focus"],
+    spellcastingAbility: "wisdom",
+    allowedSchools: ["divination", "enchantment", "transmutation", "abjuration"],
+    casterType: "full",
   },
   {
     name: "Trickster",
@@ -244,6 +290,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor"],
     weaponProficiencies: ["Simple Weapons", "Hand Crossbow", "Rapier"],
     toolProficiencies: ["Disguise Kit", "Forgery Kit"],
+    spellcastingAbility: "charisma",
+    allowedSchools: ["illusion", "enchantment", "shadowcraft"],
+    casterType: "half",
   },
   {
     name: "Sorcerer",
@@ -255,6 +304,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: [],
     weaponProficiencies: ["Dagger", "Quarterstaff", "Light Crossbow"],
     toolProficiencies: ["Arcane Focus"],
+    spellcastingAbility: "charisma",
+    allowedSchools: ["evocation", "enchantment", "transmutation", "conjuration"],
+    casterType: "full",
   },
   {
     name: "Ninja",
@@ -266,6 +318,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor"],
     weaponProficiencies: ["Simple Weapons", "Shortsword", "Nunchaku", "Shuriken"],
     toolProficiencies: ["Thieves' Tools", "Poisoner's Kit"],
+    spellcastingAbility: "dexterity",
+    allowedSchools: ["shadowcraft", "illusion"],
+    casterType: "third",
   },
   {
     name: "Samurai",
@@ -277,6 +332,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor"],
     weaponProficiencies: ["Simple Weapons", "Martial Weapons", "Katana"],
     toolProficiencies: ["Calligrapher's Supplies"],
+    spellcastingAbility: "wisdom",
+    allowedSchools: ["battlecraft", "divination"],
+    casterType: "third",
   },
   {
     name: "Bard",
@@ -288,6 +346,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor"],
     weaponProficiencies: ["Simple Weapons", "Rapier", "Shortsword", "Hand Crossbow"],
     toolProficiencies: ["Three Musical Instruments"],
+    spellcastingAbility: "charisma",
+    allowedSchools: ["enchantment", "illusion", "divination"],
+    casterType: "half",
   },
   {
     name: "Summoner",
@@ -299,6 +360,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: [],
     weaponProficiencies: ["Dagger", "Quarterstaff"],
     toolProficiencies: ["Arcane Focus", "Summoning Circle Kit"],
+    spellcastingAbility: "intelligence",
+    allowedSchools: ["conjuration", "transmutation", "divination", "abjuration"],
+    casterType: "full",
   },
   {
     name: "Kensei",
@@ -310,6 +374,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor"],
     weaponProficiencies: ["Simple Weapons", "Martial Weapons", "CHOOSE:weapon"],
     toolProficiencies: ["Calligrapher's Supplies", "Artisan's Tools"],
+    spellcastingAbility: "dexterity",
+    allowedSchools: ["battlecraft", "transmutation"],
+    casterType: "third",
   },
   {
     name: "Druid",
@@ -321,6 +388,9 @@ export const CLASSES: ClassDef[] = [
     armorProficiencies: ["Light Armor", "Medium Armor (non-metal)", "Shields (non-metal)"],
     weaponProficiencies: ["Club", "Dagger", "Quarterstaff", "Scimitar", "Sickle", "Spear"],
     toolProficiencies: ["Herbalism Kit", "Druidic Focus"],
+    spellcastingAbility: "wisdom",
+    allowedSchools: ["primal", "transmutation", "conjuration", "divination"],
+    casterType: "half",
   },
 ];
 
@@ -705,4 +775,166 @@ export function getUnresolvedChoices(
   ];
 
   return all.filter((item) => item.startsWith("CHOOSE:"));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Spellcasting
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Returns the spellcasting ability for a class, or undefined if
+ * the class is not recognised.
+ */
+export function computeSpellcastingAbility(
+  className: string
+): AbilityName | undefined {
+  const cls = CLASS_MAP.get(className);
+  return cls?.spellcastingAbility;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Spell Slot Progression
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Spell slot tables by caster type.
+ * Key = character level (1–20), value = array of slots [lv1, lv2, ..., lv9].
+ */
+
+const FULL_CASTER_SLOTS: Record<number, number[]> = {
+  1:  [2,0,0,0,0,0,0,0,0],
+  2:  [3,0,0,0,0,0,0,0,0],
+  3:  [4,2,0,0,0,0,0,0,0],
+  4:  [4,3,0,0,0,0,0,0,0],
+  5:  [4,3,2,0,0,0,0,0,0],
+  6:  [4,3,3,0,0,0,0,0,0],
+  7:  [4,3,3,1,0,0,0,0,0],
+  8:  [4,3,3,2,0,0,0,0,0],
+  9:  [4,3,3,3,1,0,0,0,0],
+  10: [4,3,3,3,2,0,0,0,0],
+  11: [4,3,3,3,2,1,0,0,0],
+  12: [4,3,3,3,2,1,0,0,0],
+  13: [4,3,3,3,2,1,1,0,0],
+  14: [4,3,3,3,2,1,1,0,0],
+  15: [4,3,3,3,2,1,1,1,0],
+  16: [4,3,3,3,2,1,1,1,0],
+  17: [4,3,3,3,2,1,1,1,1],
+  18: [4,3,3,3,3,1,1,1,1],
+  19: [4,3,3,3,3,2,1,1,1],
+  20: [4,3,3,3,3,2,2,1,1],
+};
+
+const HALF_CASTER_SLOTS: Record<number, number[]> = {
+  1:  [0,0,0,0,0,0,0,0,0],
+  2:  [2,0,0,0,0,0,0,0,0],
+  3:  [3,0,0,0,0,0,0,0,0],
+  4:  [3,0,0,0,0,0,0,0,0],
+  5:  [4,2,0,0,0,0,0,0,0],
+  6:  [4,2,0,0,0,0,0,0,0],
+  7:  [4,3,0,0,0,0,0,0,0],
+  8:  [4,3,0,0,0,0,0,0,0],
+  9:  [4,3,2,0,0,0,0,0,0],
+  10: [4,3,2,0,0,0,0,0,0],
+  11: [4,3,3,0,0,0,0,0,0],
+  12: [4,3,3,0,0,0,0,0,0],
+  13: [4,3,3,1,0,0,0,0,0],
+  14: [4,3,3,1,0,0,0,0,0],
+  15: [4,3,3,2,0,0,0,0,0],
+  16: [4,3,3,2,0,0,0,0,0],
+  17: [4,3,3,3,1,0,0,0,0],
+  18: [4,3,3,3,1,0,0,0,0],
+  19: [4,3,3,3,2,0,0,0,0],
+  20: [4,3,3,3,2,0,0,0,0],
+};
+
+const THIRD_CASTER_SLOTS: Record<number, number[]> = {
+  1:  [0,0,0,0,0,0,0,0,0],
+  2:  [0,0,0,0,0,0,0,0,0],
+  3:  [2,0,0,0,0,0,0,0,0],
+  4:  [3,0,0,0,0,0,0,0,0],
+  5:  [3,0,0,0,0,0,0,0,0],
+  6:  [3,0,0,0,0,0,0,0,0],
+  7:  [4,2,0,0,0,0,0,0,0],
+  8:  [4,2,0,0,0,0,0,0,0],
+  9:  [4,2,0,0,0,0,0,0,0],
+  10: [4,3,0,0,0,0,0,0,0],
+  11: [4,3,0,0,0,0,0,0,0],
+  12: [4,3,0,0,0,0,0,0,0],
+  13: [4,3,2,0,0,0,0,0,0],
+  14: [4,3,2,0,0,0,0,0,0],
+  15: [4,3,2,0,0,0,0,0,0],
+  16: [4,3,3,0,0,0,0,0,0],
+  17: [4,3,3,0,0,0,0,0,0],
+  18: [4,3,3,0,0,0,0,0,0],
+  19: [4,3,3,0,0,0,0,0,0],
+  20: [4,3,3,0,0,0,0,0,0],
+};
+
+const SLOT_TABLES: Record<string, Record<number, number[]>> = {
+  full: FULL_CASTER_SLOTS,
+  half: HALF_CASTER_SLOTS,
+  third: THIRD_CASTER_SLOTS,
+};
+
+export interface SpellSlotProgression {
+  /** Max slots per spell level (index 0 = level 1, index 8 = level 9) */
+  slots: number[];
+  /** Highest spell level this character has access to */
+  maxSpellLevel: number;
+  /** Caster type label for display */
+  casterLabel: string;
+  /** Per-level breakdown: base from class + bonus from race */
+  breakdown: { base: number; raceBonus: number; total: number }[];
+}
+
+/**
+ * Computes the spell slot progression for a character.
+ * Base slots come from the class's caster type table.
+ * Race bonuses stack on top (only if the character has
+ * access to that spell level already, or the bonus is for level 1).
+ */
+export function computeSpellSlots(
+  className: string,
+  raceName: string,
+  level: number
+): SpellSlotProgression {
+  const cls = CLASS_MAP.get(className);
+  const race = RACE_MAP.get(raceName);
+
+  const casterType = cls?.casterType ?? "third";
+  const table = SLOT_TABLES[casterType];
+  const baseSlots = table[Math.min(Math.max(level, 1), 20)] ?? [0,0,0,0,0,0,0,0,0];
+
+  const raceBonuses = race?.bonusSlots ?? {};
+
+  const breakdown: SpellSlotProgression["breakdown"] = [];
+  const finalSlots: number[] = [];
+  let maxSpellLevel = 0;
+
+  for (let i = 0; i < 9; i++) {
+    const spellLevel = i + 1;
+    const base = baseSlots[i];
+    const raceBonus = raceBonuses[spellLevel] ?? 0;
+    // Only apply race bonus if character has base slots OR it's level 1
+    const applicableBonus = (base > 0 || spellLevel === 1) ? raceBonus : 0;
+    const total = base + applicableBonus;
+
+    finalSlots.push(total);
+    breakdown.push({ base, raceBonus: applicableBonus, total });
+
+    if (total > 0) maxSpellLevel = spellLevel;
+  }
+
+  const casterLabels: Record<string, string> = {
+    full: "Full Caster",
+    half: "Half Caster",
+    third: "Third Caster",
+  };
+
+  return {
+    slots: finalSlots,
+    maxSpellLevel,
+    casterLabel: casterLabels[casterType] ?? "Third Caster",
+    breakdown,
+  };
 }

@@ -155,14 +155,20 @@ export interface InventoryItem {
 // ── Spells ───────────────────────────────────────────────────────
 
 export type SpellSchool =
-  | "abjuration"
-  | "conjuration"
-  | "divination"
-  | "enchantment"
-  | "evocation"
-  | "illusion"
-  | "necromancy"
-  | "transmutation";
+  // ── Arcane schools (traditional magic) ─────────
+  | "abjuration"     // protective wards and shields
+  | "conjuration"    // summoning creatures and objects
+  | "divination"     // seeing the unseen, prophecy
+  | "enchantment"    // mind control and charm effects
+  | "evocation"      // raw elemental damage (fire, ice, lightning)
+  | "illusion"       // deception, mirages, phantasms
+  | "necromancy"     // death magic, draining, undead
+  | "transmutation"  // altering matter and form
+  // ── Martial schools (physical/hybrid abilities) ─
+  | "battlecraft"    // war cries, power strikes, defensive stances
+  | "shadowcraft"    // shadow step, vanishing, smoke techniques
+  | "primal"         // beast instincts, nature's fury, elemental strikes
+  | "divine";        // holy smites, blessings, sacred channeling
 
 export interface Spell {
   id: string;
