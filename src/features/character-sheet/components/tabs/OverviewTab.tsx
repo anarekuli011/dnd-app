@@ -13,6 +13,56 @@ const ABILITY_LABELS: Record<AbilityName, string> = {
   charisma: "CHA",
 };
 
+// ── Class definitions ────────────────────────────────────────────
+
+interface ClassDef {
+  name: string;
+  description: string;
+}
+
+const CLASSES: ClassDef[] = [
+  { name: "Rogue",       description: "A stealthy trickster who uses cunning and agility to overcome obstacles and outmanoeuvre foes." },
+  { name: "Archer",      description: "A sharpshooter who masters ranged combat, raining precise death from a distance." },
+  { name: "Wizard",      description: "A scholarly spellcaster who wields arcane magic drawn from years of intense study." },
+  { name: "Priest",      description: "A divine healer and protector, channelling holy power to mend wounds and shield allies." },
+  { name: "Warrior",     description: "A battle-hardened fighter who relies on raw strength and martial prowess." },
+  { name: "Knight",      description: "An armoured champion bound by a code of honour, excelling in mounted and melee combat." },
+  { name: "Paladin",     description: "A holy warrior who combines martial skill with divine magic to smite evil." },
+  { name: "Assassin",    description: "A deadly shadow operative who eliminates targets with precision and lethal efficiency." },
+  { name: "Necromancer", description: "A dark mage who commands the forces of death, raising undead servants to do their bidding." },
+  { name: "Huntress",    description: "A swift wilderness tracker who blends primal instincts with deadly combat skills." },
+  { name: "Mystic",      description: "A psionically gifted adept who bends reality through sheer force of will." },
+  { name: "Trickster",   description: "A chaotic illusionist who deceives enemies and warps perception to gain the upper hand." },
+  { name: "Sorcerer",    description: "A natural-born spellcaster whose innate magical bloodline fuels devastating power." },
+  { name: "Ninja",       description: "A disciplined shadow warrior combining martial arts, stealth, and surprise attacks." },
+  { name: "Samurai",     description: "A noble swordmaster who channels unwavering focus and discipline into devastating strikes." },
+  { name: "Bard",        description: "A charismatic performer who weaves magic through music, inspiring allies and beguiling foes." },
+  { name: "Summoner",    description: "A conjurer who calls forth creatures and elemental forces to fight alongside them." },
+  { name: "Kensei",      description: "A weapon master who achieves supernatural perfection through lifelong devotion to a single blade." },
+  { name: "Druid",       description: "A guardian of nature who shapeshifts and commands the primal forces of the wild." },
+];
+
+const CLASS_MAP = new Map(CLASSES.map((c) => [c.name, c]));
+
+// ── Race definitions ─────────────────────────────────────────────
+
+interface RaceDef {
+  name: string;
+  description: string;
+}
+
+const RACES: RaceDef[] = [
+  { name: "Human",  description: "Versatile and ambitious, humans adapt to any role and thrive through sheer determination and resourcefulness." },
+  { name: "Elf",    description: "Graceful and long-lived, elves possess keen senses, natural affinity for magic, and an unearthly elegance." },
+  { name: "Dwarf",  description: "Stout and resilient, dwarves are master craftsmen and fierce warriors forged in mountain strongholds." },
+  { name: "Orc",    description: "Powerful and relentless, orcs channel primal fury into raw combat strength and unwavering endurance." },
+  { name: "Goblin", description: "Small but cunning, goblins survive through wit, speed, and a knack for turning chaos to their advantage." },
+  { name: "Demon",  description: "Born of infernal planes, demons wield dark power and resist fire, carrying an aura of dread wherever they go." },
+  { name: "Angel",  description: "Celestial beings touched by divine light, angels radiate holy energy and inspire courage in their allies." },
+];
+
+const RACE_MAP = new Map(RACES.map((r) => [r.name, r]));
+
 const ALIGNMENTS = [
   "",
   "Lawful Good",
@@ -54,21 +104,33 @@ export default function OverviewTab() {
           </label>
           <label className="cs-field">
             <span className="cs-field__label">Race</span>
-            <input
+            <select
               className="cs-field__input"
               value={character.race}
               onChange={(e) => updateField("race", e.target.value)}
-              placeholder="e.g. Half-Elf"
-            />
+            >
+              <option value="">— Choose Race —</option>
+              {RACES.map((r) => (
+                <option key={r.name} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="cs-field">
             <span className="cs-field__label">Class</span>
-            <input
+            <select
               className="cs-field__input"
               value={character.class}
               onChange={(e) => updateField("class", e.target.value)}
-              placeholder="e.g. Wizard"
-            />
+            >
+              <option value="">— Choose Class —</option>
+              {CLASSES.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="cs-field">
             <span className="cs-field__label">Subclass</span>
@@ -136,6 +198,26 @@ export default function OverviewTab() {
             </div>
           </div>
         </div>
+
+        {/* ── Selected race description ───────────────────── */}
+        {character.race && RACE_MAP.has(character.race) && (
+          <div className="cs-class-desc cs-class-desc--race">
+            <span className="cs-class-desc__name">{character.race}</span>
+            <span className="cs-class-desc__text">
+              {RACE_MAP.get(character.race)!.description}
+            </span>
+          </div>
+        )}
+
+        {/* ── Selected class description ──────────────────── */}
+        {character.class && CLASS_MAP.has(character.class) && (
+          <div className="cs-class-desc">
+            <span className="cs-class-desc__name">{character.class}</span>
+            <span className="cs-class-desc__text">
+              {CLASS_MAP.get(character.class)!.description}
+            </span>
+          </div>
+        )}
       </section>
 
       {/* ── Ability Scores ────────────────────────────────── */}
