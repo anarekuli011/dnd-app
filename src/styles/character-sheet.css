@@ -377,6 +377,86 @@
   color: var(--success);
 }
 
+/* ── Locked banner ────────────────────────────────────────────── */
+
+.cs-locked-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--radius);
+  margin-bottom: 1.25rem;
+  animation: cs-fade-in 0.2s ease;
+}
+
+.cs-locked-banner__icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.cs-locked-banner__text {
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+.cs-locked-banner__text strong {
+  color: var(--accent);
+}
+
+/* ── Lock choices button ──────────────────────────────────────── */
+
+.cs-lock-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--warning-dim);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius);
+}
+
+.cs-lock-choices__info {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.cs-lock-choices__icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.cs-lock-choices__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.cs-lock-choices__text strong {
+  color: var(--warning);
+  font-size: 0.9rem;
+}
+
+.cs-lock-choices__btn {
+  align-self: flex-end;
+}
+
+/* Disabled dropdown styling */
+.cs-field__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-elevated);
+}
+
 /* ══════════════════════════════════════════════════════════════════
    Overview Tab — Ability Scores (read-only, auto-computed)
    ══════════════════════════════════════════════════════════════════ */
@@ -591,11 +671,22 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  cursor: pointer;
   transition: all var(--transition);
 }
-.cs-save:hover {
+
+.cs-save--proficient {
   border-color: var(--accent-glow);
+}
+
+.cs-save__indicator {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  min-width: 16px;
+  text-align: center;
+}
+
+.cs-save__indicator--yes {
+  color: var(--accent);
 }
 
 .cs-save__check {
@@ -613,6 +704,13 @@
 .cs-save__name {
   font-size: 0.85rem;
   color: var(--text);
+  flex: 1;
+}
+
+.cs-save__source {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -889,9 +987,8 @@
   border-radius: 50%;
   border: 2px solid var(--border);
   background: var(--bg-input);
-  cursor: pointer;
   transition: all var(--transition);
-  padding: 0;
+  display: inline-block;
 }
 
 .cs-death-saves__pip--success.cs-death-saves__pip--filled {
@@ -925,19 +1022,20 @@
   background: var(--bg-elevated);
   color: var(--text-muted);
   font-size: 0.78rem;
-  cursor: pointer;
-  transition: all var(--transition);
   text-transform: capitalize;
-}
-.cs-condition:hover {
-  border-color: var(--warning);
-  color: var(--warning);
 }
 .cs-condition--active {
   background: var(--warning-dim);
   border-color: var(--warning);
   color: var(--warning);
   font-weight: 600;
+}
+
+.cs-conditions-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.5rem 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1097,6 +1195,11 @@
 .cs-skill__prof--locked {
   cursor: not-allowed;
   opacity: 0.3;
+}
+
+.cs-skill__prof--permanent {
+  cursor: default;
+  opacity: 1;
 }
 
 /* ── Passive scores ───────────────────────────────────────────── */
@@ -1301,6 +1404,21 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
+}
+
+/* ── Starter spell badge ──────────────────────────────────────── */
+
+.cs-spell-card__starter-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: var(--success);
+  background: var(--success-dim);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
 .cs-spell-card__actions {
@@ -1622,16 +1740,47 @@
    Biography Tab
    ══════════════════════════════════════════════════════════════════ */
 
-.cs-bio-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+.cs-notes-placeholder {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
-@media (max-width: 640px) {
-  .cs-bio-grid {
-    grid-template-columns: 1fr;
-  }
+.cs-notes-content {
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: var(--bg-elevated);
+}
+
+.cs-notes-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.cs-notes-empty__icon {
+  font-size: 1.5rem;
+  opacity: 0.5;
+}
+
+.cs-notes-empty__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.cs-notes-empty__text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  max-width: 400px;
+  line-height: 1.5;
+  opacity: 0.75;
 }
 
 /* ══════════════════════════════════════════════════════════════════

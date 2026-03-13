@@ -1,11 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useCharacterStore } from "../../store/useCharacterStore";
 import type {
   Spell,
   SpellSchool,
 } from "@shared/types/dnd";
 import { spellSaveDC, spellAttackModifier } from "@shared/utils/dndMath";
-import { computeSpellcastingAbility, CLASS_MAP, computeSpellSlots } from "@shared/utils/classProgression";
+import {
+  computeSpellcastingAbility,
+  computeSpellSlots,
+  getStarterSpells,
+  CLASS_MAP,
+} from "@shared/utils/classProgression";
 
 // ── Spell school data ────────────────────────────────────────────
 
@@ -16,7 +21,6 @@ interface SchoolInfo {
 }
 
 const SPELL_SCHOOLS: SchoolInfo[] = [
-  // Arcane
   { key: "abjuration",    label: "Abjuration",    category: "arcane" },
   { key: "conjuration",   label: "Conjuration",   category: "arcane" },
   { key: "divination",    label: "Divination",    category: "arcane" },
@@ -25,7 +29,6 @@ const SPELL_SCHOOLS: SchoolInfo[] = [
   { key: "illusion",      label: "Illusion",      category: "arcane" },
   { key: "necromancy",    label: "Necromancy",    category: "arcane" },
   { key: "transmutation", label: "Transmutation", category: "arcane" },
-  // Martial
   { key: "battlecraft",   label: "Battlecraft",   category: "martial" },
   { key: "shadowcraft",   label: "Shadowcraft",   category: "martial" },
   { key: "primal",        label: "Primal",        category: "martial" },
@@ -52,26 +55,6 @@ const ABILITY_SHORT: Record<string, string> = {
   charisma: "CHA",
 };
 
-// ── Helpers ──────────────────────────────────────────────────────
-
-function blankSpell(): Omit<Spell, "id"> {
-  return {
-    name: "",
-    level: 0,
-    school: "evocation",
-    castingTime: "1 action",
-    range: "30 feet",
-    components: "V, S",
-    duration: "Instantaneous",
-    description: "",
-    prepared: true,
-  };
-}
-
-function generateId(): string {
-  return Math.random().toString(36).slice(2, 10);
-}
-
 function formatMod(n: number | null): string {
   if (n === null) return "—";
   return n >= 0 ? `+${n}` : `${n}`;
@@ -81,15 +64,8 @@ function formatMod(n: number | null): string {
 
 export default function SpellsTab() {
   const { character, updateField } = useCharacterStore();
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Omit<Spell, "id">>(blankSpell());
-  const [filterLevel, setFilterLevel] = useState<number | "all">("all");
-  const [filterSchoolCategory, setFilterSchoolCategory] = useState<
-    "all" | "arcane" | "martial"
-  >("all");
 
-  // ── Auto-set spellcasting ability + spell slots from class ───
+  // ── Auto-set spellcasting ability + spell slots + starter spells
 
   const prevRef = useRef({ class: "", race: "", level: 0 });
 
@@ -97,8 +73,9 @@ export default function SpellsTab() {
     if (!character) return;
 
     const prev = prevRef.current;
+    const classChanged = prev.class !== character.class;
     const changed =
-      prev.class !== character.class ||
+      classChanged ||
       prev.race !== character.race ||
       prev.level !== character.level;
 
@@ -128,21 +105,31 @@ export default function SpellsTab() {
       const lvl = String(i + 1);
       const maxSlots = progression.slots[i];
       const currentUsed = character.spellSlots[lvl]?.used ?? 0;
-      // Keep used count, but clamp to new max
       newSlots[lvl] = {
         max: maxSlots,
         used: Math.min(currentUsed, maxSlots),
       };
     }
 
-    // Only write if different
-    const differs = Object.entries(newSlots).some(([lvl, val]) => {
+    const slotsDiffer = Object.entries(newSlots).some(([lvl, val]) => {
       const current = character.spellSlots[lvl];
       return !current || current.max !== val.max;
     });
 
-    if (differs) {
+    if (slotsDiffer) {
       updateField("spellSlots", newSlots);
+    }
+
+    // Auto-populate starter spells when class changes
+    if (classChanged && character.class) {
+      const starters = getStarterSpells(character.class);
+      // Only set if the character has no spells or only has starter spells
+      const hasOnlyStarters = character.spells.every((s) =>
+        s.id.startsWith("starter-")
+      );
+      if (character.spells.length === 0 || hasOnlyStarters) {
+        updateField("spells", starters);
+      }
     }
   }, [character?.class, character?.race, character?.level]);
 
@@ -153,18 +140,13 @@ export default function SpellsTab() {
   const spellAbility = character.spellcastingAbility;
   const cls = CLASS_MAP.get(character.class);
 
-  // ── Allowed schools for this class ───────────────────────────
+  // ── Allowed schools ──────────────────────────────────────────
 
   const allowedSchools = cls?.allowedSchools ?? [];
   const allowedSet = new Set(allowedSchools);
+  const availableSchools = SPELL_SCHOOLS.filter((s) => allowedSet.has(s.key));
 
-  const availableSchools = SPELL_SCHOOLS.filter((s) =>
-    allowedSet.has(s.key)
-  );
-  const hasArcane = availableSchools.some((s) => s.category === "arcane");
-  const hasMartial = availableSchools.some((s) => s.category === "martial");
-
-  // ── Spell slot progression for display ───────────────────────
+  // ── Spell slot progression ───────────────────────────────────
 
   const slotProgression = computeSpellSlots(
     character.class,
@@ -172,65 +154,15 @@ export default function SpellsTab() {
     character.level
   );
 
-  // ── Spell CRUD ───────────────────────────────────────────────
+  // ── Group spells by level ────────────────────────────────────
 
-  function saveSpell() {
-    if (!character) return;
-    const spells = [...character.spells];
-    if (editingId) {
-      const idx = spells.findIndex((s) => s.id === editingId);
-      if (idx !== -1) spells[idx] = { ...form, id: editingId };
-    } else {
-      spells.push({ ...form, id: generateId() });
-    }
-    updateField("spells", spells);
-    setShowForm(false);
-    setEditingId(null);
-    setForm(blankSpell());
-  }
-
-  function editSpell(spell: Spell) {
-    const { id, ...rest } = spell;
-    setForm(rest);
-    setEditingId(id);
-    setShowForm(true);
-  }
-
-  function removeSpell(id: string) {
-    if (!character) return;
-    updateField(
-      "spells",
-      character.spells.filter((s) => s.id !== id)
-    );
-  }
-
-  function togglePrepared(id: string) {
-    if (!character) return;
-    const spells = character.spells.map((s) =>
-      s.id === id ? { ...s, prepared: !s.prepared } : s
-    );
-    updateField("spells", spells);
-  }
-
-  // ── Filtered & grouped spells ────────────────────────────────
-
-  let filtered = character.spells;
-
-  if (filterLevel !== "all") {
-    filtered = filtered.filter((s) => s.level === filterLevel);
-  }
-
-  if (filterSchoolCategory !== "all") {
-    filtered = filtered.filter((s) => {
-      const info = SCHOOL_MAP.get(s.school);
-      return info?.category === filterSchoolCategory;
-    });
-  }
-
-  const grouped = filtered.reduce<Record<number, Spell[]>>((acc, spell) => {
-    (acc[spell.level] ??= []).push(spell);
-    return acc;
-  }, {});
+  const grouped = character.spells.reduce<Record<number, Spell[]>>(
+    (acc, spell) => {
+      (acc[spell.level] ??= []).push(spell);
+      return acc;
+    },
+    {}
+  );
 
   const sortedLevels = Object.keys(grouped)
     .map(Number)
@@ -240,7 +172,7 @@ export default function SpellsTab() {
 
   return (
     <div className="cs-tab cs-tab--spells">
-      {/* ── Spellcasting Stats (auto-set from class) ──────── */}
+      {/* ── Spellcasting Stats ─────────────────────────────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Spellcasting</h2>
         {!character.class && (
@@ -262,9 +194,7 @@ export default function SpellsTab() {
               {spellAbility ? ABILITY_SHORT[spellAbility] : "—"}
             </span>
             <span className="cs-stat-block__detail">
-              {spellAbility
-                ? `${ABILITY_LABELS[spellAbility]}`
-                : "None"}
+              {spellAbility ? ABILITY_LABELS[spellAbility] : "None"}
             </span>
           </div>
           <div className="cs-stat-block cs-stat-block--readonly">
@@ -287,7 +217,6 @@ export default function SpellsTab() {
           </div>
         </div>
 
-        {/* Source label */}
         {character.class && spellAbility && (
           <div className="cs-stat-breakdown">
             <span className="cs-stat-breakdown__item">
@@ -297,7 +226,6 @@ export default function SpellsTab() {
           </div>
         )}
 
-        {/* Available schools */}
         {character.class && availableSchools.length > 0 && (
           <div className="cs-school-list">
             <span className="cs-school-list__label">Available schools:</span>
@@ -315,7 +243,7 @@ export default function SpellsTab() {
         )}
       </section>
 
-      {/* ── Spell Slots (auto-computed, read-only) ─────── */}
+      {/* ── Spell Slots (auto-computed) ───────────────────── */}
       <section className="cs-section">
         <div className="cs-section__header">
           <h2 className="cs-section__title">Spell Slots</h2>
@@ -330,7 +258,8 @@ export default function SpellsTab() {
 
         {slotProgression.maxSpellLevel === 0 && character.class && (
           <p className="cs-section__hint">
-            No spell slots yet at this level. {cls?.casterType === "third"
+            No spell slots yet at this level.{" "}
+            {cls?.casterType === "third"
               ? "Third casters gain slots at level 3."
               : cls?.casterType === "half"
               ? "Half casters gain slots at level 2."
@@ -384,60 +313,15 @@ export default function SpellsTab() {
 
         <p className="cs-section__hint">
           Spell slots are set by your class, race, and level. Usage is
-          tracked automatically by the combat system when integrated.
+          tracked by the combat system during sessions.
         </p>
       </section>
 
-      {/* ── Spell List ────────────────────────────────────── */}
+      {/* ── Known Spells (read-only) ──────────────────────── */}
       <section className="cs-section">
-        <div className="cs-section__header">
-          <h2 className="cs-section__title">Spells</h2>
-          <div className="cs-section__actions">
-            <select
-              className="cs-field__input"
-              value={filterSchoolCategory}
-              onChange={(e) =>
-                setFilterSchoolCategory(
-                  e.target.value as "all" | "arcane" | "martial"
-                )
-              }
-            >
-              <option value="all">All Schools</option>
-              {hasArcane && <option value="arcane">Arcane</option>}
-              {hasMartial && <option value="martial">Martial</option>}
-            </select>
-            <select
-              className="cs-field__input"
-              value={filterLevel === "all" ? "all" : String(filterLevel)}
-              onChange={(e) =>
-                setFilterLevel(
-                  e.target.value === "all" ? "all" : Number(e.target.value)
-                )
-              }
-            >
-              <option value="all">All Levels</option>
-              <option value="0">Cantrips</option>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((l) => (
-                <option key={l} value={String(l)}>
-                  Level {l}
-                </option>
-              ))}
-            </select>
-            <button
-              className="btn btn--primary"
-              onClick={() => {
-                setForm({
-                  ...blankSpell(),
-                  school: availableSchools[0]?.key ?? "evocation",
-                });
-                setEditingId(null);
-                setShowForm(true);
-              }}
-            >
-              + Add Spell
-            </button>
-          </div>
-        </div>
+        <h2 className="cs-section__title">
+          Known Spells ({character.spells.length})
+        </h2>
 
         {sortedLevels.map((level) => (
           <div key={level} className="cs-spell-group">
@@ -446,20 +330,10 @@ export default function SpellsTab() {
             </h3>
             {grouped[level].map((spell) => {
               const schoolInfo = SCHOOL_MAP.get(spell.school);
+              const isStarter = spell.id.startsWith("starter-");
               return (
                 <div key={spell.id} className="cs-spell-card">
                   <div className="cs-spell-card__header">
-                    {spell.level > 0 && (
-                      <button
-                        className={`cs-spell-card__prep ${
-                          spell.prepared ? "cs-spell-card__prep--yes" : ""
-                        }`}
-                        onClick={() => togglePrepared(spell.id)}
-                        title={spell.prepared ? "Prepared" : "Not prepared"}
-                      >
-                        {spell.prepared ? "◆" : "◇"}
-                      </button>
-                    )}
                     <span className="cs-spell-card__name">{spell.name}</span>
                     <span
                       className={`cs-spell-card__school-badge cs-spell-card__school-badge--${
@@ -468,20 +342,11 @@ export default function SpellsTab() {
                     >
                       {schoolInfo?.label ?? spell.school}
                     </span>
-                    <div className="cs-spell-card__actions">
-                      <button
-                        className="cs-spell-card__btn"
-                        onClick={() => editSpell(spell)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="cs-spell-card__btn cs-spell-card__btn--danger"
-                        onClick={() => removeSpell(spell.id)}
-                      >
-                        ×
-                      </button>
-                    </div>
+                    {isStarter && (
+                      <span className="cs-spell-card__starter-badge">
+                        Starter
+                      </span>
+                    )}
                   </div>
                   <div className="cs-spell-card__meta">
                     {spell.castingTime} · {spell.range} · {spell.components} ·{" "}
@@ -496,158 +361,26 @@ export default function SpellsTab() {
           </div>
         ))}
 
-        {filtered.length === 0 && (
+        {character.spells.length === 0 && !character.class && (
           <p className="cs-empty">
-            No spells yet. Add your first spell above.
+            Select a class on the Overview tab to receive your starter spells.
+          </p>
+        )}
+
+        {character.spells.length === 0 && character.class && (
+          <p className="cs-empty">
+            No starter spells for this class. You'll learn spells during
+            sessions.
+          </p>
+        )}
+
+        {character.spells.length > 0 && (
+          <p className="cs-section__hint">
+            Additional spells are learned during sessions — through levelling
+            up, finding scrolls, or training with mentors.
           </p>
         )}
       </section>
-
-      {/* ── Add / Edit Spell Form ─────────────────────────── */}
-      {showForm && (
-        <div className="cs-modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="cs-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="cs-modal__title">
-              {editingId ? "Edit Spell" : "Add Spell"}
-            </h3>
-            <div className="cs-grid cs-grid--2">
-              <label className="cs-field">
-                <span className="cs-field__label">Name</span>
-                <input
-                  className="cs-field__input"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  autoFocus
-                />
-              </label>
-              <label className="cs-field">
-                <span className="cs-field__label">Level</span>
-                <select
-                  className="cs-field__input"
-                  value={form.level}
-                  onChange={(e) =>
-                    setForm({ ...form, level: Number(e.target.value) })
-                  }
-                >
-                  <option value={0}>Cantrip</option>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((l) => (
-                    <option key={l} value={l}>
-                      Level {l}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="cs-field">
-                <span className="cs-field__label">School</span>
-                <select
-                  className="cs-field__input"
-                  value={form.school}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      school: e.target.value as SpellSchool,
-                    })
-                  }
-                >
-                  {availableSchools.filter((s) => s.category === "arcane")
-                    .length > 0 && (
-                    <optgroup label="Arcane Schools">
-                      {availableSchools
-                        .filter((s) => s.category === "arcane")
-                        .map((s) => (
-                          <option key={s.key} value={s.key}>
-                            {s.label}
-                          </option>
-                        ))}
-                    </optgroup>
-                  )}
-                  {availableSchools.filter((s) => s.category === "martial")
-                    .length > 0 && (
-                    <optgroup label="Martial Schools">
-                      {availableSchools
-                        .filter((s) => s.category === "martial")
-                        .map((s) => (
-                          <option key={s.key} value={s.key}>
-                            {s.label}
-                          </option>
-                        ))}
-                    </optgroup>
-                  )}
-                  {availableSchools.length === 0 && (
-                    <option value="">Select a class first</option>
-                  )}
-                </select>
-              </label>
-              <label className="cs-field">
-                <span className="cs-field__label">Casting Time</span>
-                <input
-                  className="cs-field__input"
-                  value={form.castingTime}
-                  onChange={(e) =>
-                    setForm({ ...form, castingTime: e.target.value })
-                  }
-                />
-              </label>
-              <label className="cs-field">
-                <span className="cs-field__label">Range</span>
-                <input
-                  className="cs-field__input"
-                  value={form.range}
-                  onChange={(e) =>
-                    setForm({ ...form, range: e.target.value })
-                  }
-                />
-              </label>
-              <label className="cs-field">
-                <span className="cs-field__label">Components</span>
-                <input
-                  className="cs-field__input"
-                  value={form.components}
-                  onChange={(e) =>
-                    setForm({ ...form, components: e.target.value })
-                  }
-                />
-              </label>
-              <label className="cs-field">
-                <span className="cs-field__label">Duration</span>
-                <input
-                  className="cs-field__input"
-                  value={form.duration}
-                  onChange={(e) =>
-                    setForm({ ...form, duration: e.target.value })
-                  }
-                />
-              </label>
-            </div>
-            <label className="cs-field" style={{ marginTop: "0.75rem" }}>
-              <span className="cs-field__label">Description</span>
-              <textarea
-                className="cs-field__input cs-field__textarea"
-                rows={3}
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-              />
-            </label>
-            <div className="cs-modal__footer">
-              <button
-                className="btn btn--outline"
-                onClick={() => setShowForm(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn--primary"
-                onClick={saveSpell}
-                disabled={!form.name.trim()}
-              >
-                {editingId ? "Save Changes" : "Add Spell"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

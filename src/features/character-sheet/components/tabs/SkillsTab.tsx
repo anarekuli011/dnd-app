@@ -91,7 +91,7 @@ export default function SkillsTab() {
               {remainingPoints} point{remainingPoints !== 1 ? "s" : ""} remaining
             </span>
             <span className="cs-prof-points__hint">
-              ● Proficient = 1 pt · ★ Expertise = 2 pts
+              ● Proficient = 1 pt · ★ Expertise = 2 pts · Permanent once assigned
             </span>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function SkillsTab() {
         <h2 className="cs-section__title">Skills</h2>
         <p className="cs-section__hint">
           Click the circle to assign proficiency points. Proficient costs 1
-          point, expertise costs 2. Click again to remove.
+          point, expertise costs 2. Assignments are permanent — choose wisely!
         </p>
 
         <div className="cs-skills">
@@ -141,26 +141,17 @@ export default function SkillsTab() {
                     proficient: true,
                     expertise: true,
                   });
-                } else {
-                  // No points for expertise — remove proficiency instead (refund)
-                  updateNested(`skills.${skill}`, {
-                    proficient: false,
-                    expertise: false,
-                  });
                 }
-              } else {
-                // expertise → none (refund 2)
-                updateNested(`skills.${skill}`, {
-                  proficient: false,
-                  expertise: false,
-                });
+                // If no points left, do nothing — can't downgrade
               }
+              // expertise → locked, no downgrade possible
             }
 
             // Can the player upgrade this skill?
             const canUpgrade =
               (!isProficient && remainingPoints >= 1) ||
               (isProficient && !hasExpertise && remainingPoints >= 1);
+            const isLocked = isProficient || hasExpertise;
 
             return (
               <div key={skill}>
@@ -187,16 +178,21 @@ export default function SkillsTab() {
                       !canUpgrade && !isProficient
                         ? "cs-skill__prof--locked"
                         : ""
+                    } ${
+                      isLocked && !canUpgrade
+                        ? "cs-skill__prof--permanent"
+                        : ""
                     }`}
                     onClick={cycleProf}
+                    disabled={!canUpgrade && isLocked}
                     title={
                       hasExpertise
-                        ? "Expertise (2 pts) — click to remove"
-                        : isProficient
-                        ? remainingPoints >= 1
-                          ? "Proficient (1 pt) — click for expertise"
-                          : "Proficient (1 pt) — click to remove"
-                        : remainingPoints >= 1
+                        ? "Expertise (2 pts) — permanently assigned"
+                        : isProficient && !canUpgrade
+                        ? "Proficient (1 pt) — permanently assigned"
+                        : isProficient && canUpgrade
+                        ? "Proficient (1 pt) — click to upgrade to expertise"
+                        : canUpgrade
                         ? "Not proficient — click to assign (1 pt)"
                         : "No points remaining"
                     }
@@ -209,9 +205,9 @@ export default function SkillsTab() {
                   </span>
                   <span className="cs-skill__cost">
                     {hasExpertise
-                      ? "2 pts"
+                      ? "2 pts 🔒"
                       : isProficient
-                      ? "1 pt"
+                      ? "1 pt 🔒"
                       : ""}
                   </span>
                   <span className="cs-skill__ability">

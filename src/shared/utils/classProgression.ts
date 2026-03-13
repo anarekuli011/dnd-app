@@ -8,7 +8,7 @@
 // Players cannot manually adjust ability scores.
 // ══════════════════════════════════════════════════════════════════
 
-import type { AbilityName, AbilityScores, DieType, SpellSchool } from "@shared/types/dnd";
+import type { AbilityName, AbilityScores, DieType, SpellSchool, Spell } from "@shared/types/dnd";
 import { ABILITY_NAMES, DIE_MAX } from "@shared/types/dnd";
 
 // ── Base score for all abilities ─────────────────────────────────
@@ -26,8 +26,10 @@ export interface RaceDef {
   speed: number;
   languages: string[];
   bonusSlots: Partial<Record<number, number>>;
-  /** Flat bonus to carry capacity in kg */
   carryBonus: number;
+  bonusSavingThrow?: AbilityName;
+  /** Levels at which this race learns an additional language (via CHOOSE: dropdown) */
+  bonusLanguageLevels?: number[];
 }
 
 export const RACES: RaceDef[] = [
@@ -40,6 +42,7 @@ export const RACES: RaceDef[] = [
     languages: ["Common", "CHOOSE:language"],
     bonusSlots: { 1: 1 },
     carryBonus: 15,
+    bonusLanguageLevels: [8, 16],
   },
   {
     name: "Elf",
@@ -50,6 +53,7 @@ export const RACES: RaceDef[] = [
     languages: ["Common", "Elvish"],
     bonusSlots: { 1: 1 },
     carryBonus: 5,
+    bonusSavingThrow: "dexterity",
   },
   {
     name: "Dwarf",
@@ -60,6 +64,7 @@ export const RACES: RaceDef[] = [
     languages: ["Common", "Dwarvish"],
     bonusSlots: {},
     carryBonus: 25,
+    bonusSavingThrow: "constitution",
   },
   {
     name: "Orc",
@@ -70,6 +75,7 @@ export const RACES: RaceDef[] = [
     languages: ["Common", "Orcish"],
     bonusSlots: {},
     carryBonus: 30,
+    bonusSavingThrow: "strength",
   },
   {
     name: "Goblin",
@@ -80,6 +86,7 @@ export const RACES: RaceDef[] = [
     languages: ["Common", "Goblin"],
     bonusSlots: { 1: 1 },
     carryBonus: 5,
+    bonusSavingThrow: "dexterity",
   },
   {
     name: "Demon",
@@ -90,6 +97,7 @@ export const RACES: RaceDef[] = [
     languages: ["Common", "Infernal"],
     bonusSlots: { 2: 1 },
     carryBonus: 20,
+    bonusSavingThrow: "charisma",
   },
   {
     name: "Angel",
@@ -100,6 +108,7 @@ export const RACES: RaceDef[] = [
     languages: ["Common", "Celestial"],
     bonusSlots: { 2: 1 },
     carryBonus: 10,
+    bonusSavingThrow: "wisdom",
   },
 ];
 
@@ -131,8 +140,11 @@ export interface ClassDef {
   allowedSchools: SpellSchool[];
   /** full = slots at Lv1 up to Lv9, half = slots at Lv2 up to Lv5, third = slots at Lv3 up to Lv3 */
   casterType: "full" | "half" | "third";
-  /** Flat bonus to carry capacity in kg */
   carryBonus: number;
+  /** Default spells the class starts with (0-2). Full Spell objects minus id. */
+  starterSpells: Omit<Spell, "id">[];
+  /** Which ability saves this class is proficient in */
+  savingThrows: AbilityName[];
 }
 
 export const CLASSES: ClassDef[] = [
@@ -150,6 +162,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["shadowcraft", "illusion", "enchantment"],
     casterType: "third",
     carryBonus: 10,
+    starterSpells: [
+      { name: "Shadow Step", level: 0, school: "shadowcraft", castingTime: "1 bonus action", range: "Self", components: "S", duration: "1 round", description: "You briefly meld into the shadows, allowing you to move 10 feet without provoking opportunity attacks.", prepared: true },
+    ],
+    savingThrows: ["dexterity", "intelligence"],
   },
   {
     name: "Archer",
@@ -165,6 +181,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["primal", "divination", "evocation"],
     casterType: "half",
     carryBonus: 10,
+    starterSpells: [
+      { name: "Hunter's Mark", level: 0, school: "primal", castingTime: "1 bonus action", range: "90 feet", components: "V", duration: "1 hour", description: "You mark a creature as your quarry. Your ranged attacks against the target deal an extra d4 damage.", prepared: true },
+    ],
+    savingThrows: ["dexterity", "wisdom"],
   },
   {
     name: "Wizard",
@@ -180,6 +200,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["evocation", "abjuration", "conjuration", "divination", "transmutation"],
     casterType: "full",
     carryBonus: 0,
+    starterSpells: [
+      { name: "Fire Bolt", level: 0, school: "evocation", castingTime: "1 action", range: "120 feet", components: "V, S", duration: "Instantaneous", description: "You hurl a ball of fire at a target. Make a spell attack roll — on a hit, the target takes d10 fire damage.", prepared: true },
+      { name: "Mage Armor", level: 1, school: "abjuration", castingTime: "1 action", range: "Touch", components: "V, S, M", duration: "8 hours", description: "A protective magical force surrounds you or a willing creature, setting their base AC to 13 + DEX modifier.", prepared: true },
+    ],
+    savingThrows: ["intelligence", "wisdom"],
   },
   {
     name: "Priest",
@@ -195,6 +220,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["divine", "abjuration", "necromancy", "divination"],
     casterType: "half",
     carryBonus: 10,
+    starterSpells: [
+      { name: "Sacred Flame", level: 0, school: "divine", castingTime: "1 action", range: "60 feet", components: "V, S", duration: "Instantaneous", description: "A radiant beam descends on a creature. The target must make a DEX save or take d8 radiant damage.", prepared: true },
+      { name: "Cure Wounds", level: 1, school: "divine", castingTime: "1 action", range: "Touch", components: "V, S", duration: "Instantaneous", description: "You touch a creature and channel divine energy, restoring d8 + spellcasting modifier hit points.", prepared: true },
+    ],
+    savingThrows: ["wisdom", "charisma"],
   },
   {
     name: "Warrior",
@@ -210,6 +240,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["battlecraft", "evocation"],
     casterType: "third",
     carryBonus: 30,
+    starterSpells: [
+      { name: "Battle Cry", level: 0, school: "battlecraft", castingTime: "1 bonus action", range: "Self (30-foot radius)", components: "V", duration: "1 round", description: "You let out a thundering war cry. Allies within range gain advantage on their next attack roll.", prepared: true },
+    ],
+    savingThrows: ["strength", "constitution"],
   },
   {
     name: "Knight",
@@ -225,6 +259,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["battlecraft", "divine", "abjuration"],
     casterType: "third",
     carryBonus: 25,
+    starterSpells: [
+      { name: "Shield of Faith", level: 0, school: "divine", castingTime: "1 bonus action", range: "Self", components: "V, S", duration: "1 minute", description: "A shimmering field of divine energy surrounds you, granting +2 AC for the duration.", prepared: true },
+    ],
+    savingThrows: ["strength", "charisma"],
   },
   {
     name: "Paladin",
@@ -240,6 +278,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["divine", "abjuration", "evocation"],
     casterType: "half",
     carryBonus: 25,
+    starterSpells: [
+      { name: "Divine Smite", level: 0, school: "divine", castingTime: "Part of attack", range: "Melee", components: "V", duration: "Instantaneous", description: "When you hit with a melee attack, you channel holy energy through your weapon, dealing an extra d8 radiant damage.", prepared: true },
+    ],
+    savingThrows: ["strength", "charisma"],
   },
   {
     name: "Assassin",
@@ -255,6 +297,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["shadowcraft", "necromancy", "illusion"],
     casterType: "third",
     carryBonus: 10,
+    starterSpells: [
+      { name: "Poison Strike", level: 0, school: "shadowcraft", castingTime: "1 bonus action", range: "Self", components: "S, M", duration: "1 minute", description: "You coat your weapon in a quick-acting toxin. Your next attack deals an extra d6 poison damage.", prepared: true },
+    ],
+    savingThrows: ["dexterity", "intelligence"],
   },
   {
     name: "Necromancer",
@@ -270,6 +316,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["necromancy", "conjuration", "divination", "enchantment"],
     casterType: "full",
     carryBonus: 0,
+    starterSpells: [
+      { name: "Chill Touch", level: 0, school: "necromancy", castingTime: "1 action", range: "120 feet", components: "V, S", duration: "1 round", description: "A ghostly skeletal hand reaches toward a creature. On a hit, it takes d8 necrotic damage and cannot regain HP until your next turn.", prepared: true },
+      { name: "False Life", level: 1, school: "necromancy", castingTime: "1 action", range: "Self", components: "V, S, M", duration: "1 hour", description: "You draw on dark energy to bolster yourself, gaining d4 + 4 temporary hit points.", prepared: true },
+    ],
+    savingThrows: ["intelligence", "wisdom"],
   },
   {
     name: "Huntress",
@@ -285,6 +336,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["primal", "divination", "transmutation"],
     casterType: "half",
     carryBonus: 15,
+    starterSpells: [
+      { name: "Nature's Whisper", level: 0, school: "primal", castingTime: "1 action", range: "Self", components: "V, S", duration: "10 minutes", description: "You attune to the natural world around you, gaining advantage on Perception and Survival checks for the duration.", prepared: true },
+    ],
+    savingThrows: ["dexterity", "wisdom"],
   },
   {
     name: "Mystic",
@@ -300,6 +355,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["divination", "enchantment", "transmutation", "abjuration"],
     casterType: "full",
     carryBonus: 0,
+    starterSpells: [
+      { name: "Mind Spike", level: 0, school: "divination", castingTime: "1 action", range: "60 feet", components: "S", duration: "Instantaneous", description: "You drive a psychic lance into a creature's mind. The target takes d6 psychic damage and you learn its location for 1 round.", prepared: true },
+      { name: "Thought Shield", level: 0, school: "abjuration", castingTime: "1 reaction", range: "Self", components: "S", duration: "1 round", description: "When targeted by a mental effect, you erect a psychic barrier granting advantage on the saving throw.", prepared: true },
+    ],
+    savingThrows: ["wisdom", "intelligence"],
   },
   {
     name: "Trickster",
@@ -315,6 +375,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["illusion", "enchantment", "shadowcraft"],
     casterType: "half",
     carryBonus: 5,
+    starterSpells: [
+      { name: "Minor Illusion", level: 0, school: "illusion", castingTime: "1 action", range: "30 feet", components: "S, M", duration: "1 minute", description: "You create a sound or image of an object that lasts for the duration. Creatures can make an Investigation check to see through it.", prepared: true },
+    ],
+    savingThrows: ["charisma", "dexterity"],
   },
   {
     name: "Sorcerer",
@@ -330,6 +394,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["evocation", "enchantment", "transmutation", "conjuration"],
     casterType: "full",
     carryBonus: 0,
+    starterSpells: [
+      { name: "Arcane Surge", level: 0, school: "evocation", castingTime: "1 action", range: "120 feet", components: "V, S", duration: "Instantaneous", description: "Raw magical energy erupts from your hands in a bolt of force. The target takes d10 force damage on a hit.", prepared: true },
+      { name: "Magic Missile", level: 1, school: "evocation", castingTime: "1 action", range: "120 feet", components: "V, S", duration: "Instantaneous", description: "Three glowing darts of force unerringly strike targets of your choice, each dealing d4 + 1 force damage.", prepared: true },
+    ],
+    savingThrows: ["charisma", "constitution"],
   },
   {
     name: "Ninja",
@@ -345,6 +414,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["shadowcraft", "illusion"],
     casterType: "third",
     carryBonus: 10,
+    starterSpells: [
+      { name: "Shadow Cloak", level: 0, school: "shadowcraft", castingTime: "1 bonus action", range: "Self", components: "S", duration: "1 round", description: "Shadows wrap around your form, granting you advantage on your next Stealth check and making you heavily obscured in dim light.", prepared: true },
+    ],
+    savingThrows: ["dexterity", "strength"],
   },
   {
     name: "Samurai",
@@ -360,6 +433,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["battlecraft", "divination"],
     casterType: "third",
     carryBonus: 20,
+    starterSpells: [
+      { name: "Focused Strike", level: 0, school: "battlecraft", castingTime: "Part of attack", range: "Melee", components: "V", duration: "Instantaneous", description: "You centre your focus into a single devastating blow. Your next melee attack roll gains +2 and deals an extra d4 damage.", prepared: true },
+    ],
+    savingThrows: ["strength", "wisdom"],
   },
   {
     name: "Bard",
@@ -375,6 +452,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["enchantment", "illusion", "divination"],
     casterType: "half",
     carryBonus: 5,
+    starterSpells: [
+      { name: "Vicious Mockery", level: 0, school: "enchantment", castingTime: "1 action", range: "60 feet", components: "V", duration: "Instantaneous", description: "You unleash a string of cutting insults laced with magic. The target takes d4 psychic damage and has disadvantage on its next attack.", prepared: true },
+      { name: "Healing Word", level: 1, school: "enchantment", castingTime: "1 bonus action", range: "60 feet", components: "V", duration: "Instantaneous", description: "You speak a word of magical encouragement. A creature you can see regains d4 + spellcasting modifier hit points.", prepared: true },
+    ],
+    savingThrows: ["charisma", "dexterity"],
   },
   {
     name: "Summoner",
@@ -390,6 +472,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["conjuration", "transmutation", "divination", "abjuration"],
     casterType: "full",
     carryBonus: 0,
+    starterSpells: [
+      { name: "Conjure Spark", level: 0, school: "conjuration", castingTime: "1 action", range: "60 feet", components: "V, S", duration: "1 round", description: "You conjure a tiny elemental spark that darts toward a target, dealing d6 fire, cold, or lightning damage (your choice).", prepared: true },
+      { name: "Find Familiar", level: 1, school: "conjuration", castingTime: "1 hour", range: "10 feet", components: "V, S, M", duration: "Until dispelled", description: "You summon a spirit that takes the form of a small creature. It obeys your commands and can scout, deliver touch spells, and aid you.", prepared: true },
+    ],
+    savingThrows: ["intelligence", "charisma"],
   },
   {
     name: "Kensei",
@@ -405,6 +492,10 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["battlecraft", "transmutation"],
     casterType: "third",
     carryBonus: 15,
+    starterSpells: [
+      { name: "Blade Ward", level: 0, school: "battlecraft", castingTime: "1 bonus action", range: "Self", components: "V, S", duration: "1 round", description: "You trace protective sigils in the air with your blade. Until your next turn, you have resistance to bludgeoning, piercing, and slashing damage.", prepared: true },
+    ],
+    savingThrows: ["dexterity", "constitution"],
   },
   {
     name: "Druid",
@@ -420,6 +511,11 @@ export const CLASSES: ClassDef[] = [
     allowedSchools: ["primal", "transmutation", "conjuration", "divination"],
     casterType: "half",
     carryBonus: 15,
+    starterSpells: [
+      { name: "Druidcraft", level: 0, school: "primal", castingTime: "1 action", range: "30 feet", components: "V, S", duration: "Instantaneous", description: "You create a tiny natural effect — predict weather, bloom a flower, summon a harmless sensory effect, or light/snuff a small flame.", prepared: true },
+      { name: "Goodberry", level: 1, school: "transmutation", castingTime: "1 action", range: "Touch", components: "V, S, M", duration: "24 hours", description: "You create 10 magical berries. Each berry restores 1 HP when consumed and provides enough nourishment for a full day.", prepared: true },
+    ],
+    savingThrows: ["wisdom", "constitution"],
   },
 ];
 
@@ -722,9 +818,17 @@ export const PROFICIENCY_CHOICES: Record<string, string[]> = {
  * Returns the CHOOSE: category from a marker string.
  * e.g. "CHOOSE:language" → "language"
  */
+/**
+ * Returns the CHOOSE: category from a marker string.
+ * e.g. "CHOOSE:language" → "language"
+ * e.g. "CHOOSE:language_lv8" → "language"
+ * e.g. "CHOOSE:weapon" → "weapon"
+ */
 export function parseChoiceMarker(item: string): string | null {
-  if (item.startsWith("CHOOSE:")) return item.slice(7);
-  return null;
+  if (!item.startsWith("CHOOSE:")) return null;
+  const raw = item.slice(7);
+  // Strip _lvXX suffix to get the base category
+  return raw.replace(/_lv\d+$/, "");
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -748,7 +852,8 @@ export interface ComputedProficiencies {
 export function computeProficiencies(
   raceName: string,
   className: string,
-  choices: Record<string, string> = {}
+  choices: Record<string, string> = {},
+  level: number = 1
 ): ComputedProficiencies {
   const race = RACE_MAP.get(raceName);
   const cls = CLASS_MAP.get(className);
@@ -762,7 +867,17 @@ export function computeProficiencies(
       return item;
     });
 
-  const languages = resolve([...(race?.languages ?? ["Common"])]);
+  // Base languages + level-gated bonus languages
+  const langSources = [...(race?.languages ?? ["Common"])];
+  if (race?.bonusLanguageLevels) {
+    for (const lvl of race.bonusLanguageLevels) {
+      if (level >= lvl) {
+        langSources.push(`CHOOSE:language_lv${lvl}`);
+      }
+    }
+  }
+
+  const languages = resolve(langSources);
   const armor = resolve([...(cls?.armorProficiencies ?? [])]);
   const weapons = resolve([...(cls?.weaponProficiencies ?? [])]);
   const tools = resolve([...(cls?.toolProficiencies ?? [])]);
@@ -791,7 +906,8 @@ export function computeProficiencies(
  */
 export function getUnresolvedChoices(
   raceName: string,
-  className: string
+  className: string,
+  level: number = 1
 ): string[] {
   const race = RACE_MAP.get(raceName);
   const cls = CLASS_MAP.get(className);
@@ -802,6 +918,15 @@ export function getUnresolvedChoices(
     ...(cls?.weaponProficiencies ?? []),
     ...(cls?.toolProficiencies ?? []),
   ];
+
+  // Add level-gated language choices
+  if (race?.bonusLanguageLevels) {
+    for (const lvl of race.bonusLanguageLevels) {
+      if (level >= lvl) {
+        all.push(`CHOOSE:language_lv${lvl}`);
+      }
+    }
+  }
 
   return all.filter((item) => item.startsWith("CHOOSE:"));
 }
@@ -991,7 +1116,7 @@ export function computeCarryCapacity(
   const race = RACE_MAP.get(raceName);
   const cls = CLASS_MAP.get(className);
 
-  const base = strengthScore * 1;
+  const base = strengthScore * 2;
   const raceBonus = race?.carryBonus ?? 0;
   const classBonus = cls?.carryBonus ?? 0;
 
@@ -1001,4 +1126,136 @@ export function computeCarryCapacity(
     classBonus,
     total: base + raceBonus + classBonus,
   };
+}
+
+// ── Starter Spells ───────────────────────────────────────────────
+
+/**
+ * Returns the starter spells for a class, each with a generated id.
+ */
+export function getStarterSpells(className: string): Spell[] {
+  const cls = CLASS_MAP.get(className);
+  if (!cls) return [];
+
+  return cls.starterSpells.map((s, i) => ({
+    ...s,
+    id: `starter-${className.toLowerCase()}-${i}`,
+  }));
+}
+
+// ── Saving Throw Proficiencies ───────────────────────────────────
+
+/**
+ * Computes saving throw proficiencies from class + race.
+ * Class provides 2 base proficiencies, race may add 1 bonus.
+ */
+export function computeSavingThrows(
+  className: string,
+  raceName: string
+): Partial<Record<AbilityName, boolean>> {
+  const cls = CLASS_MAP.get(className);
+  const race = RACE_MAP.get(raceName);
+
+  const result: Partial<Record<AbilityName, boolean>> = {};
+
+  // Class saves (2 per class)
+  if (cls) {
+    for (const ability of cls.savingThrows) {
+      result[ability] = true;
+    }
+  }
+
+  // Race bonus save (1 per race, if any)
+  if (race?.bonusSavingThrow) {
+    result[race.bonusSavingThrow] = true;
+  }
+
+  return result;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Class Combat Bonuses (for future combat system)
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Weapon Mastery — Kensei-specific bonus damage with chosen weapon.
+ *
+ * Scaling: +1 at level 3, then +1 every 4 levels after.
+ *   Lv 1-2:  +0  (still learning)
+ *   Lv 3-6:  +1  (first breakthrough)
+ *   Lv 7-10: +2  (refined technique)
+ *   Lv 11-14: +3 (master strikes)
+ *   Lv 15-18: +4 (legendary precision)
+ *   Lv 19-20: +5 (transcendent mastery)
+ *
+ * For comparison at level 20:
+ *   - Kensei Katana: d10 + DEX mod (~6) + mastery (+5) ≈ 16.5 avg
+ *   - Wizard spell: d10 + multiple targets + spell slot scaling
+ *   - Warrior: d12 + STR mod (~8) + Battlecraft buffs ≈ 14.5 avg
+ * So Kensei hits hardest per single swing, but no AOE or magic utility.
+ */
+export function computeWeaponMastery(
+  className: string,
+  level: number
+): { bonus: number; label: string } | null {
+  if (className !== "Kensei") return null;
+
+  let bonus: number;
+  let label: string;
+
+  if (level < 3) {
+    bonus = 0;
+    label = "Apprentice";
+  } else if (level < 7) {
+    bonus = 1;
+    label = "Adept";
+  } else if (level < 11) {
+    bonus = 2;
+    label = "Expert";
+  } else if (level < 15) {
+    bonus = 3;
+    label = "Master";
+  } else if (level < 19) {
+    bonus = 4;
+    label = "Grandmaster";
+  } else {
+    bonus = 5;
+    label = "Transcendent";
+  }
+
+  return { bonus, label };
+}
+
+/**
+ * Generic class combat bonuses — extendable for future classes.
+ * Returns all active combat bonuses for display and combat resolution.
+ */
+export interface CombatBonus {
+  name: string;
+  type: "damage" | "attack" | "defense";
+  value: number;
+  description: string;
+  appliesTo?: string; // e.g. "chosen weapon" or "all melee"
+}
+
+export function getClassCombatBonuses(
+  className: string,
+  level: number,
+  chosenWeapon?: string
+): CombatBonus[] {
+  const bonuses: CombatBonus[] = [];
+
+  // Kensei weapon mastery
+  const mastery = computeWeaponMastery(className, level);
+  if (mastery && mastery.bonus > 0) {
+    bonuses.push({
+      name: `Weapon Mastery (${mastery.label})`,
+      type: "damage",
+      value: mastery.bonus,
+      description: `+${mastery.bonus} damage with your chosen weapon from years of devoted training.`,
+      appliesTo: chosenWeapon ?? "chosen weapon",
+    });
+  }
+
+  return bonuses;
 }

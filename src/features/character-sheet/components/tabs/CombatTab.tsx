@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { useCharacterStore } from "../../store/useCharacterStore";
-import type { Condition } from "@shared/types/dnd";
 import { abilityModifier } from "@shared/utils/dndMath";
 import {
   computeSpeed,
@@ -13,24 +12,6 @@ import {
 } from "@shared/utils/classProgression";
 
 // ── Constants ────────────────────────────────────────────────────
-
-const CONDITIONS: Condition[] = [
-  "blinded",
-  "charmed",
-  "deafened",
-  "frightened",
-  "grappled",
-  "incapacitated",
-  "invisible",
-  "paralyzed",
-  "petrified",
-  "poisoned",
-  "prone",
-  "restrained",
-  "stunned",
-  "unconscious",
-  "exhaustion",
-];
 
 function formatMod(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
@@ -183,16 +164,6 @@ export default function CombatTab() {
   let hpBarClass = "";
   if (hpPercent <= 25) hpBarClass = "cs-hp__bar--critical";
   else if (hpPercent <= 50) hpBarClass = "cs-hp__bar--low";
-
-  function toggleCondition(c: Condition) {
-    const has = character!.conditions.includes(c);
-    updateField(
-      "conditions",
-      has
-        ? character!.conditions.filter((x) => x !== c)
-        : [...character!.conditions, c]
-    );
-  }
 
   // ── Render ───────────────────────────────────────────────────
 
@@ -352,7 +323,7 @@ export default function CombatTab() {
         </div>
       </section>
 
-      {/* ── Death Saves ───────────────────────────────────── */}
+      {/* ── Death Saves (read-only, session managed) ──── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Death Saves</h2>
         <div className="cs-death-saves">
@@ -360,17 +331,11 @@ export default function CombatTab() {
             <span className="cs-death-saves__label">Successes</span>
             <div className="cs-death-saves__pips">
               {[1, 2, 3].map((i) => (
-                <button
+                <span
                   key={`s-${i}`}
                   className={`cs-death-saves__pip cs-death-saves__pip--success ${
                     ds.successes >= i ? "cs-death-saves__pip--filled" : ""
                   }`}
-                  onClick={() =>
-                    updateNested(
-                      "deathSaves.successes",
-                      ds.successes >= i ? i - 1 : i
-                    )
-                  }
                 />
               ))}
             </div>
@@ -379,30 +344,18 @@ export default function CombatTab() {
             <span className="cs-death-saves__label">Failures</span>
             <div className="cs-death-saves__pips">
               {[1, 2, 3].map((i) => (
-                <button
+                <span
                   key={`f-${i}`}
                   className={`cs-death-saves__pip cs-death-saves__pip--fail ${
                     ds.failures >= i ? "cs-death-saves__pip--filled" : ""
                   }`}
-                  onClick={() =>
-                    updateNested(
-                      "deathSaves.failures",
-                      ds.failures >= i ? i - 1 : i
-                    )
-                  }
                 />
               ))}
             </div>
           </div>
-          <button
-            className="btn btn--outline cs-death-saves__reset"
-            onClick={() => {
-              updateNested("deathSaves.successes", 0);
-              updateNested("deathSaves.failures", 0);
-            }}
-          >
-            Reset
-          </button>
+          <p className="cs-section__hint">
+            Death saves are rolled and tracked during combat sessions.
+          </p>
         </div>
       </section>
 
@@ -435,21 +388,21 @@ export default function CombatTab() {
         </div>
       </section>
 
-      {/* ── Conditions ────────────────────────────────────── */}
+      {/* ── Conditions (read-only, session managed) ───── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Conditions</h2>
         <div className="cs-conditions">
-          {CONDITIONS.map((c) => (
-            <button
-              key={c}
-              className={`cs-condition ${
-                character.conditions.includes(c) ? "cs-condition--active" : ""
-              }`}
-              onClick={() => toggleCondition(c)}
-            >
-              {c}
-            </button>
-          ))}
+          {character.conditions.length > 0 ? (
+            character.conditions.map((c) => (
+              <span key={c} className="cs-condition cs-condition--active">
+                {c}
+              </span>
+            ))
+          ) : (
+            <span className="cs-conditions-empty">
+              No active conditions. Conditions are applied during combat sessions.
+            </span>
+          )}
         </div>
       </section>
     </div>

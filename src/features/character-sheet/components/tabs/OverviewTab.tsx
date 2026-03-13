@@ -13,6 +13,7 @@ import {
   getUnresolvedChoices,
   parseChoiceMarker,
   PROFICIENCY_CHOICES,
+  computeSavingThrows,
 } from "@shared/utils/classProgression";
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -104,7 +105,8 @@ export default function OverviewTab() {
       const profs = computeProficiencies(
         character.race,
         character.class,
-        choices
+        choices,
+        character.level
       );
 
       // Only sync resolved values (no CHOOSE: markers) to Firestore
@@ -131,6 +133,15 @@ export default function OverviewTab() {
         updateField("weaponProficiencies", resolved(profs.weaponProficiencies));
       if (toolDiffer)
         updateField("toolProficiencies", resolved(profs.toolProficiencies));
+
+      // Compute saving throw proficiencies from class + race
+      const newSaves = computeSavingThrows(character.class, character.race);
+      const savesDiffer =
+        JSON.stringify(character.savingThrows) !==
+        JSON.stringify(newSaves);
+      if (savesDiffer) {
+        updateField("savingThrows", newSaves);
+      }
     }
   }, [character?.race, character?.class, character?.level]);
 
@@ -150,13 +161,23 @@ export default function OverviewTab() {
       | Record<string, string>
       | undefined) ?? {};
 
+  const isLocked =
+    ((character as unknown as Record<string, unknown>).choicesLocked as boolean) ?? false;
+
   const unresolvedChoices = getUnresolvedChoices(
     character.race,
-    character.class
+    character.class,
+    character.level
   );
 
+  // Check if all required choices are made
+  const allChoicesMade =
+    character.race !== "" &&
+    character.class !== "" &&
+    unresolvedChoices.every((marker) => !!choices[marker]);
+
   function handleChoice(marker: string, value: string) {
-    if (!character) return;
+    if (!character || isLocked) return;
     const updated = { ...choices, [marker]: value };
     updateNested("proficiencyChoices", updated);
 
@@ -164,7 +185,8 @@ export default function OverviewTab() {
     const profs = computeProficiencies(
       character.race,
       character.class,
-      updated
+      updated,
+      character.level
     );
     const resolved = (arr: string[]) =>
       arr.filter((s) => !s.startsWith("CHOOSE:"));
@@ -175,8 +197,38 @@ export default function OverviewTab() {
     updateField("toolProficiencies", resolved(profs.toolProficiencies));
   }
 
+  function handleLockChoices() {
+    if (!character || isLocked) return;
+    if (!allChoicesMade) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to lock your choices?\n\n" +
+        `Race: ${character.race}\n` +
+        `Class: ${character.class}\n\n` +
+        "This cannot be undone. Your race, class, and proficiency selections " +
+        "will be permanent. You can still change your name, subclass, " +
+        "background, alignment, and inventory."
+    );
+
+    if (confirmed) {
+      updateNested("choicesLocked", true);
+    }
+  }
+
   return (
     <div className="cs-tab cs-tab--overview">
+      {/* ── Locked banner ─────────────────────────────────── */}
+      {isLocked && (
+        <div className="cs-locked-banner">
+          <span className="cs-locked-banner__icon">🔒</span>
+          <div className="cs-locked-banner__text">
+            <strong>Choices locked.</strong> Race, class, and proficiency
+            selections are permanent. You can still edit your name, subclass,
+            background, alignment, and inventory.
+          </div>
+        </div>
+      )}
+
       {/* ── Identity ──────────────────────────────────────── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Identity</h2>
@@ -195,6 +247,7 @@ export default function OverviewTab() {
               className="cs-field__input"
               value={character.race}
               onChange={(e) => updateField("race", e.target.value)}
+              disabled={isLocked}
             >
               <option value="">— Choose Race —</option>
               {RACES.map((r) => (
@@ -210,6 +263,7 @@ export default function OverviewTab() {
               className="cs-field__input"
               value={character.class}
               onChange={(e) => updateField("class", e.target.value)}
+              disabled={isLocked}
             >
               <option value="">— Choose Class —</option>
               {CLASSES.map((c) => (
@@ -228,36 +282,18 @@ export default function OverviewTab() {
               placeholder="e.g. School of Evocation"
             />
           </label>
-          <label className="cs-field">
+          <div className="cs-field">
             <span className="cs-field__label">Level</span>
-            <input
-              className="cs-field__input cs-field__input--narrow"
-              type="number"
-              min={1}
-              max={20}
-              value={character.level}
-              onChange={(e) => {
-                const lvl = Math.max(1, Math.min(20, Number(e.target.value)));
-                updateField("level", lvl);
-                updateField("proficiencyBonus", proficiencyBonus(lvl));
-              }}
-            />
-          </label>
-          <label className="cs-field">
+            <div className="cs-field__static cs-field__static--accent">
+              {character.level}
+            </div>
+          </div>
+          <div className="cs-field">
             <span className="cs-field__label">XP</span>
-            <input
-              className="cs-field__input cs-field__input--narrow"
-              type="number"
-              min={0}
-              value={character.experiencePoints ?? 0}
-              onChange={(e) =>
-                updateField(
-                  "experiencePoints",
-                  Math.max(0, Number(e.target.value))
-                )
-              }
-            />
-          </label>
+            <div className="cs-field__static">
+              {character.experiencePoints ?? 0}
+            </div>
+          </div>
           <label className="cs-field">
             <span className="cs-field__label">Background</span>
             <input
@@ -378,32 +414,54 @@ export default function OverviewTab() {
         )}
       </section>
 
-      {/* ── Saving Throws ─────────────────────────────────── */}
+      {/* ── Saving Throws (auto-set from class + race) ──── */}
       <section className="cs-section">
         <h2 className="cs-section__title">Saving Throws</h2>
+        {(!character.race && !character.class) && (
+          <p className="cs-section__hint">
+            Select a race and class above to set your saving throw proficiencies.
+          </p>
+        )}
         <div className="cs-saves">
           {ABILITY_NAMES.map((ability) => {
             const proficient = character.savingThrows[ability] ?? false;
             const mod = abilityModifier(character.abilityScores[ability]);
             const total = mod + (proficient ? profBonus : 0);
+
+            // Determine source
+            const cls = CLASS_MAP.get(character.class);
+            const race = RACE_MAP.get(character.race);
+            const fromClass = cls?.savingThrows.includes(ability) ?? false;
+            const fromRace = race?.bonusSavingThrow === ability;
+
             return (
-              <label key={ability} className="cs-save">
-                <input
-                  type="checkbox"
-                  className="cs-save__check"
-                  checked={proficient}
-                  onChange={(e) =>
-                    updateNested(
-                      `savingThrows.${ability}`,
-                      e.target.checked
-                    )
-                  }
-                />
+              <div
+                key={ability}
+                className={`cs-save ${proficient ? "cs-save--proficient" : ""}`}
+              >
+                <span
+                  className={`cs-save__indicator ${
+                    proficient ? "cs-save__indicator--yes" : ""
+                  }`}
+                >
+                  {proficient ? "●" : "○"}
+                </span>
                 <span className="cs-save__mod">{formatModifier(total)}</span>
                 <span className="cs-save__name">
                   {ability.charAt(0).toUpperCase() + ability.slice(1)}
                 </span>
-              </label>
+                {proficient && (
+                  <span className="cs-save__source">
+                    {fromClass && fromRace
+                      ? `${character.class} + ${character.race}`
+                      : fromClass
+                      ? character.class
+                      : fromRace
+                      ? character.race
+                      : ""}
+                  </span>
+                )}
+              </div>
             );
           })}
         </div>
@@ -418,12 +476,17 @@ export default function OverviewTab() {
               const category = parseChoiceMarker(marker)!;
               const options = PROFICIENCY_CHOICES[category] ?? [];
               const currentValue = choices[marker] ?? "";
+
+              // Extract level from marker like "CHOOSE:language_lv8"
+              const lvlMatch = marker.match(/_lv(\d+)$/);
+              const lvlSuffix = lvlMatch ? ` (Level ${lvlMatch[1]})` : "";
+
               const label =
                 category === "language"
-                  ? "Bonus Language"
+                  ? `Bonus Language${lvlSuffix}`
                   : category === "weapon"
                   ? "Weapon of Choice"
-                  : `Choose ${category}`;
+                  : `Choose ${category}${lvlSuffix}`;
 
               return (
                 <label key={marker} className="cs-field">
@@ -432,6 +495,7 @@ export default function OverviewTab() {
                     className="cs-field__input"
                     value={currentValue}
                     onChange={(e) => handleChoice(marker, e.target.value)}
+                    disabled={isLocked}
                   >
                     <option value="">— Select —</option>
                     {options.map((opt) => (
@@ -443,6 +507,43 @@ export default function OverviewTab() {
                 </label>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Lock Choices Button ───────────────────────────── */}
+      {!isLocked && character.race && character.class && (
+        <section className="cs-section">
+          <div className="cs-lock-choices">
+            <div className="cs-lock-choices__info">
+              <span className="cs-lock-choices__icon">⚠️</span>
+              <div className="cs-lock-choices__text">
+                <strong>Ready to lock in your choices?</strong>
+                <span>
+                  Once locked, your race ({character.race}), class (
+                  {character.class}), and proficiency selections cannot be
+                  changed. Your name, subclass, background, alignment, and
+                  inventory will remain editable.
+                </span>
+              </div>
+            </div>
+            <button
+              className="btn btn--primary cs-lock-choices__btn"
+              onClick={handleLockChoices}
+              disabled={!allChoicesMade}
+              title={
+                allChoicesMade
+                  ? "Lock your race, class, and proficiency choices permanently"
+                  : "Complete all proficiency selections before locking"
+              }
+            >
+              🔒 Lock Choices
+            </button>
+            {!allChoicesMade && (
+              <p className="cs-section__hint">
+                Complete all proficiency selections above before locking.
+              </p>
+            )}
           </div>
         </section>
       )}
