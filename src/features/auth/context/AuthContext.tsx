@@ -8,6 +8,7 @@ import {
   GoogleAuthProvider,
   signOut,
   updateProfile,
+  type AuthError,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@config/firebase";
@@ -112,7 +113,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    // Always prompt for account selection so re-login after logout works
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      const authErr = err as AuthError;
+      // In Electron, the popup can close before the result is relayed.
+      // If the sign-in actually succeeded in the background,
+      // onAuthStateChanged will pick it up. Give it a moment.
+      if (
+        authErr.code === "auth/popup-closed-by-user" ||
+        authErr.code === "auth/cancelled-popup-request"
+      ) {
+        // Wait briefly then check if Firebase resolved the sign-in
+        await new Promise((r) => setTimeout(r, 1500));
+        if (auth.currentUser) {
+          // Sign-in succeeded despite the popup error — state will update
+          return;
+        }
+      }
+      throw err;
+    }
   };
 
   const logout = async () => {

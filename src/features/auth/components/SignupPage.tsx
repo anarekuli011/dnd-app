@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useAuth } from "@features/auth/context/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 export default function SignupPage() {
-  const { signup, loginWithGoogle } = useAuth();
+  const { user, loading, signup, loginWithGoogle } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,6 +45,11 @@ export default function SignupPage() {
       setBusy(false);
     }
   };
+
+  // If already signed in, redirect to dashboard
+  if (!loading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="auth-page">
