@@ -6,7 +6,6 @@ import CombatTab from "./tabs/CombatTab";
 import SkillsTab from "./tabs/SkillsTab";
 import SpellsTab from "./tabs/SpellsTab";
 import InventoryTab from "./tabs/InventoryTab";
-import FeaturesTab from "./tabs/FeaturesTab";
 import BiographyTab from "./tabs/BiographyTab";
 
 // ── Tab definitions ──────────────────────────────────────────────
@@ -17,7 +16,6 @@ const TABS = [
   { id: "skills", label: "Skills", icon: "🎯" },
   { id: "spells", label: "Spells", icon: "✨" },
   { id: "inventory", label: "Inventory", icon: "🎒" },
-  { id: "features", label: "Features", icon: "⭐" },
   { id: "biography", label: "Bio & Notes", icon: "📖" },
 ] as const;
 
@@ -86,8 +84,6 @@ export default function CharacterSheet() {
         return <SpellsTab />;
       case "inventory":
         return <InventoryTab />;
-      case "features":
-        return <FeaturesTab />;
       case "biography":
         return <BiographyTab />;
     }
