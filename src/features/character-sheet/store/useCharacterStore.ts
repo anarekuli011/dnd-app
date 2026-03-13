@@ -11,6 +11,10 @@ import {
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 const SAVE_DELAY = 800; // ms
 
+// Time window after a local edit during which we ignore snapshots.
+// Must be longer than SAVE_DELAY + Firestore round-trip.
+const SNAPSHOT_IGNORE_WINDOW = 2000; // ms
+
 // ── Store types ──────────────────────────────────────────────────
 
 interface CharacterStore {
@@ -60,8 +64,9 @@ function setNested(obj: Record<string, unknown>, path: string, value: unknown) {
 // ── Store ────────────────────────────────────────────────────────
 
 let unsubFn: (() => void) | null = null;
-// Track whether we're applying a remote snapshot to avoid save loops
-let applyingRemote = false;
+
+// Timestamp of the last local edit — used to ignore stale snapshots
+let lastLocalEdit = 0;
 
 export const useCharacterStore = create<CharacterStore>((set, get) => ({
   character: null,
@@ -85,16 +90,22 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
 
       set({ character: char, loading: false });
 
-      // Subscribe to real-time updates (for multiplayer sync later)
+      // Subscribe to real-time updates (for multiplayer sync later).
+      // We ignore snapshots that arrive within SNAPSHOT_IGNORE_WINDOW
+      // of a local edit to prevent overwriting uncommitted changes.
       unsubFn = onCharacterChanged(id, (updated) => {
         if (!updated) return;
-        const state = get();
-        // Only apply remote changes if we're not in the middle of a local edit
-        if (!state.dirty) {
-          applyingRemote = true;
-          set({ character: updated });
-          applyingRemote = false;
+
+        const now = Date.now();
+        const timeSinceEdit = now - lastLocalEdit;
+
+        // If the user edited recently, skip this snapshot entirely
+        if (timeSinceEdit < SNAPSHOT_IGNORE_WINDOW) {
+          return;
         }
+
+        // Safe to apply remote data
+        set({ character: updated, dirty: false });
       });
     } catch (err) {
       set({
@@ -116,10 +127,11 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
   },
 
   updateField: (field, value) => {
-    if (applyingRemote) return;
-
     const char = get().character;
     if (!char) return;
+
+    // Mark the time of this local edit
+    lastLocalEdit = Date.now();
 
     const updated = { ...char, [field]: value };
     set({ character: updated, dirty: true });
@@ -132,10 +144,11 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
   },
 
   updateNested: (path, value) => {
-    if (applyingRemote) return;
-
     const char = get().character;
     if (!char) return;
+
+    // Mark the time of this local edit
+    lastLocalEdit = Date.now();
 
     const clone = JSON.parse(JSON.stringify(char)) as Record<string, unknown>;
     setNested(clone, path, value);
@@ -167,6 +180,7 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
 
   reset: () => {
     get().unsubscribe();
+    lastLocalEdit = 0;
     set({
       character: null,
       loading: false,
