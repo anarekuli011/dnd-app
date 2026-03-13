@@ -3,6 +3,7 @@ import LoginPage from "@features/auth/components/LoginPage";
 import SignupPage from "@features/auth/components/SignupPage";
 import AuthGuard from "@features/auth/components/AuthGuard";
 import Dashboard from "@features/dashboard/Dashboard";
+import { CharacterSheet } from "@features/character-sheet";
 
 export default function App() {
   return (
@@ -20,9 +21,16 @@ export default function App() {
           </AuthGuard>
         }
       />
+      <Route
+        path="/character/:id"
+        element={
+          <AuthGuard>
+            <CharacterSheet />
+          </AuthGuard>
+        }
+      />
 
       {/* Placeholder routes for future phases */}
-      {/* <Route path="/character/:id" element={<AuthGuard><CharacterSheet /></AuthGuard>} /> */}
       {/* <Route path="/session/:code"  element={<AuthGuard><SessionView /></AuthGuard>} /> */}
 
       {/* Default redirect */}

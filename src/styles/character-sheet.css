@@ -1,0 +1,1335 @@
+/* ══════════════════════════════════════════════════════════════════
+   Character Sheet Styles
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Additional CSS variables ─────────────────────────────────── */
+
+:root {
+  --bg-elevated: #1e2130;
+  --bg-hover: #282b3d;
+  --accent-dim: rgba(124, 107, 245, 0.15);
+  --accent-glow: rgba(124, 107, 245, 0.3);
+  --success: #22c55e;
+  --success-dim: rgba(34, 197, 94, 0.15);
+  --warning: #f59e0b;
+  --warning-dim: rgba(245, 158, 11, 0.15);
+  --danger-dim: rgba(239, 68, 68, 0.15);
+  --heal: #34d399;
+  --heal-dim: rgba(52, 211, 153, 0.15);
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --transition: 0.15s ease;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Layout Shell
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────────── */
+
+.cs-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cs-header__back {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.cs-header__back:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.cs-header__identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.cs-header__name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-header__meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.cs-header__status {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
+.cs-header__saving {
+  color: var(--warning);
+}
+
+.cs-header__unsaved {
+  color: var(--text-muted);
+}
+
+.cs-header__saved {
+  color: var(--success);
+}
+
+/* ── Tabs nav ─────────────────────────────────────────────────── */
+
+.cs-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 1rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cs-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.cs-tabs__tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.cs-tabs__tab:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.cs-tabs__tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.cs-tabs__icon {
+  font-size: 1rem;
+}
+
+.cs-tabs__label {
+  font-size: 0.8rem;
+}
+
+/* ── Content area ─────────────────────────────────────────────── */
+
+.cs-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* ── Loading / Error ──────────────────────────────────────────── */
+
+.cs-loading,
+.cs-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+
+.cs-loading__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: cs-spin 0.8s linear infinite;
+}
+
+@keyframes cs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cs-error h2 {
+  color: var(--text);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Shared Tab Components
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-tab {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Sections ─────────────────────────────────────────────────── */
+
+.cs-section {
+  margin-bottom: 1.75rem;
+}
+
+.cs-section__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cs-section__hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  font-style: italic;
+}
+
+.cs-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.cs-section__header .cs-section__title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.cs-section__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* ── Grid layouts ─────────────────────────────────────────────── */
+
+.cs-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cs-grid--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.cs-grid--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 640px) {
+  .cs-grid--2,
+  .cs-grid--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Fields ───────────────────────────────────────────────────── */
+
+.cs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cs-field__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cs-field__input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--transition);
+  font-family: inherit;
+}
+.cs-field__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.cs-field__input--narrow {
+  max-width: 120px;
+}
+
+.cs-field__textarea {
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.5;
+}
+
+.cs-field__textarea--large {
+  min-height: 200px;
+}
+
+.cs-field__static {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.cs-field__static--accent {
+  color: var(--accent);
+}
+
+/* ── Empty state ──────────────────────────────────────────────── */
+
+.cs-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Overview Tab — Ability Scores
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .cs-abilities {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.cs-ability {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.5rem;
+  transition: border-color var(--transition);
+}
+.cs-ability:hover {
+  border-color: var(--accent-glow);
+}
+
+.cs-ability__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.cs-ability__score {
+  width: 50px;
+  text-align: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  outline: none;
+}
+.cs-ability__score:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+/* Remove spinner from number inputs */
+.cs-ability__score::-webkit-outer-spin-button,
+.cs-ability__score::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cs-ability__score[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.cs-ability__mod {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Overview Tab — Saving Throws
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-saves {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .cs-saves {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cs-save {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.cs-save:hover {
+  border-color: var(--accent-glow);
+}
+
+.cs-save__check {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.cs-save__mod {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 28px;
+}
+
+.cs-save__name {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Combat Tab
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-combat-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cs-stat-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+  min-width: 100px;
+}
+
+.cs-stat-block__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.cs-stat-block__value {
+  width: 60px;
+  text-align: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  outline: none;
+}
+.cs-stat-block__value:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.cs-stat-block__value--select {
+  font-size: 0.9rem;
+  width: 80px;
+  padding: 0.5rem;
+}
+
+.cs-stat-block__value--readonly {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  width: auto;
+  padding: 0;
+}
+
+/* Remove spinner */
+.cs-stat-block__value::-webkit-outer-spin-button,
+.cs-stat-block__value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cs-stat-block__value[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* ── Hit Points ───────────────────────────────────────────────── */
+
+.cs-hp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cs-hp__bar-container {
+  position: relative;
+  height: 32px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cs-hp__bar {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+  border-radius: var(--radius);
+  transition: width 0.3s ease;
+}
+.cs-hp__bar[data-percent="0"] {
+  background: var(--danger);
+}
+
+.cs-hp__bar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.cs-hp__controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cs-hp__btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.cs-hp__btn--dmg:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.cs-hp__btn--heal:hover {
+  background: var(--heal-dim);
+  border-color: var(--heal);
+  color: var(--heal);
+}
+
+/* ── Death Saves ──────────────────────────────────────────────── */
+
+.cs-death-saves {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.cs-death-saves__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cs-death-saves__label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  min-width: 70px;
+}
+
+.cs-death-saves__pips {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.cs-death-saves__pip {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 0;
+}
+
+.cs-death-saves__pip--success.cs-death-saves__pip--filled {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.cs-death-saves__pip--fail.cs-death-saves__pip--filled {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.cs-death-saves__reset {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+}
+
+/* ── Conditions ───────────────────────────────────────────────── */
+
+.cs-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cs-condition {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-transform: capitalize;
+}
+.cs-condition:hover {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.cs-condition--active {
+  background: var(--warning-dim);
+  border-color: var(--warning);
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Skills Tab
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cs-skill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+.cs-skill:hover {
+  background: var(--bg-hover);
+}
+
+.cs-skill__prof {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all var(--transition);
+}
+.cs-skill__prof:hover {
+  background: var(--accent-dim);
+}
+.cs-skill__prof--yes {
+  color: var(--accent);
+}
+.cs-skill__prof--expert {
+  color: var(--warning);
+}
+
+.cs-skill__mod {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 28px;
+  text-align: right;
+}
+
+.cs-skill__name {
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+}
+
+.cs-skill__ability {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* ── Passive scores ───────────────────────────────────────────── */
+
+.cs-passives {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cs-passive {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+}
+
+.cs-passive__value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.cs-passive__label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Spells Tab
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Spell Slots ──────────────────────────────────────────────── */
+
+.cs-spell-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cs-spell-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.cs-spell-slot__level {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 40px;
+}
+
+.cs-spell-slot__pips {
+  display: flex;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.cs-spell-slot__pip {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 0;
+}
+.cs-spell-slot__pip--used {
+  background: var(--accent);
+}
+.cs-spell-slot__pip:hover {
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.cs-spell-slot__max {
+  width: 40px;
+  text-align: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  outline: none;
+}
+.cs-spell-slot__max:focus {
+  border-color: var(--accent);
+}
+
+/* ── Spell Groups ─────────────────────────────────────────────── */
+
+.cs-spell-group {
+  margin-bottom: 1rem;
+}
+
+.cs-spell-group__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+
+/* ── Spell Cards ──────────────────────────────────────────────── */
+
+.cs-spell-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.4rem;
+  transition: border-color var(--transition);
+}
+.cs-spell-card:hover {
+  border-color: var(--accent-glow);
+}
+
+.cs-spell-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cs-spell-card__prep {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  transition: color var(--transition);
+}
+.cs-spell-card__prep--yes {
+  color: var(--accent);
+}
+
+.cs-spell-card__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.cs-spell-card__school {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  font-style: italic;
+}
+
+.cs-spell-card__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.cs-spell-card__btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.cs-spell-card__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.cs-spell-card__btn--danger:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.cs-spell-card__meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.cs-spell-card__desc {
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-top: 0.35rem;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Inventory Tab
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Weight bar ───────────────────────────────────────────────── */
+
+.cs-weight {
+  margin-bottom: 0.5rem;
+}
+
+.cs-weight__bar-container {
+  position: relative;
+  height: 24px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cs-weight__bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #9b87f5);
+  transition: width 0.3s ease;
+}
+.cs-weight__bar[data-over="true"] {
+  background: linear-gradient(90deg, var(--danger), #f87171);
+}
+
+.cs-weight__text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Item list ────────────────────────────────────────────────── */
+
+.cs-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cs-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition);
+}
+.cs-item:hover {
+  border-color: var(--accent-glow);
+}
+.cs-item--equipped {
+  border-left: 3px solid var(--accent);
+}
+
+.cs-item__equip {
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  transition: color var(--transition);
+}
+.cs-item__equip--yes {
+  color: var(--accent);
+}
+
+.cs-item__icon {
+  font-size: 1rem;
+}
+
+.cs-item__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cs-item__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cs-item__desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-item__damage,
+.cs-item__ac {
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.cs-item__qty {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cs-item__qty-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 0;
+}
+.cs-item__qty-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.cs-item__qty-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cs-item__weight {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 48px;
+  text-align: right;
+}
+
+.cs-item__actions {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.cs-item__btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.cs-item__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.cs-item__btn--danger:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Features Tab
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-feature-group {
+  margin-bottom: 1rem;
+}
+
+.cs-feature-group__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+
+.cs-feature-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.4rem;
+}
+.cs-feature-card:hover {
+  border-color: var(--accent-glow);
+}
+
+.cs-feature-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cs-feature-card__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.cs-feature-card__recharge {
+  font-size: 0.7rem;
+  color: var(--success);
+  padding: 0.1rem 0.4rem;
+  background: var(--success-dim);
+  border-radius: var(--radius-sm);
+}
+
+.cs-feature-card__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.cs-feature-card__desc {
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-top: 0.35rem;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.cs-feature-card__uses {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.cs-feature-card__uses-btns {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Biography Tab
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-bio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .cs-bio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Modal
+   ══════════════════════════════════════════════════════════════════ */
+
+.cs-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.cs-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 560px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+.cs-modal__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.cs-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Dashboard Updates
+   ══════════════════════════════════════════════════════════════════ */
+
+.dashboard-card--wide {
+  grid-column: 1 / -1;
+}
+
+.dashboard-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.dashboard-card__header h3 {
+  margin: 0;
+}
+
+.dashboard-card__loading,
+.dashboard-card__empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+.dashboard-chars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dashboard-char {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.dashboard-char:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.dashboard-char__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.dashboard-char__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-char__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dashboard-char__meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.dashboard-char__delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.dashboard-char__delete:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
